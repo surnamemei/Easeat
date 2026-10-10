@@ -6,7 +6,7 @@
   margin-top: 16rpx;
 }
 
-.email {
+.link-box {
   display: flex;
   align-items: center;
   margin-top: 28rpx;
@@ -15,11 +15,12 @@
   background: #f4f7f9;
 }
 
-.email-main {
+.link-main {
   flex: 1;
+  min-width: 0;
 }
 
-.email-text {
-  font-size: 32rpx;
-  font-weight: 500;
+.link-text {
+  font-size: 26rpx;
+  word-break: break-all;
 }

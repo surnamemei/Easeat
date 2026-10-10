@@ -235,8 +235,8 @@ for (const platform of ['wx', 'qq']) {
     tutorial.toggle(tap({ index: 2 }));
     assert.equal(tutorial.data.sections[2].open, true);
     const feedback = app.open('pages/feedback/feedback');
-    feedback.copyEmail();
-    assert.equal(app.log.clipboard, 'pr_eaSEAT@163.com');
+    feedback.copyLink();
+    assert.equal(app.log.clipboard, 'https://github.com/surnamemei/Easeat/issues');
     assert.equal(feedback.data.isQQ, platform === 'qq');
   });
 }

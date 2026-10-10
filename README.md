@@ -121,4 +121,4 @@ npm run sync
 
 ## 团队
 
-易位由武汉英中高级中学的学生团队开发。反馈邮箱：pr_eaSEAT@163.com
+易位由武汉英中高级中学的学生团队开发。问题和建议请提交到 [GitHub Issues](https://github.com/surnamemei/Easeat/issues)。

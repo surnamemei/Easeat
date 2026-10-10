@@ -1,19 +1,19 @@
 const platform = require('../../utils/platform');
 const share = require('../../utils/share');
 
-const EMAIL = 'pr_eaSEAT@163.com';
+const ISSUES = 'https://github.com/surnamemei/Easeat/issues';
 
 Page({
   data: {
-    email: EMAIL,
+    issues: ISSUES,
     isQQ: platform.isQQ,
     qqGroupId: platform.qqGroupId || '',
   },
   onLoad() {
     platform.showShareMenu();
   },
-  copyEmail() {
-    qq.setClipboardData({ data: EMAIL });
+  copyLink() {
+    qq.setClipboardData({ data: ISSUES });
   },
   onShareAppMessage: share.appMessage,
   onShareTimeline: share.timeline,
