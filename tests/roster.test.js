@@ -22,6 +22,10 @@ test('Excel rows: blank first row, numbering column, numeric heights', () => {
   ]);
 });
 
+test('title rows such as “高一（3）班学生名单” are skipped', () => {
+  assert.deepEqual(parseRows([['高一（3）班学生名单'], ['姓名', '身高'], ['张三', 160]]), [{ name: '张三', height: 160 }]);
+});
+
 test('heights outside a sensible range are ignored', () => {
   assert.equal(parseHeight('abc'), null);
   assert.equal(parseHeight(30), null);

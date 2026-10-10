@@ -7,7 +7,7 @@
  */
 const crypto = require('crypto');
 const cloud = require('wx-server-sdk');
-const { arrange, fitToLayout, cleanStudents, matchesLayout, MODES } = require('./arrange');
+const { arrange, fitToLayout, cleanStudents, matchesLayout, isMode } = require('./arrange');
 const roster = require('./roster');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
@@ -25,6 +25,7 @@ const MAX_STUDENTS = 150;
 const MAX_ROWS = 20;
 const MAX_COLS = 20;
 const MAX_PAIRS = 100;
+const AUTO_CONCURRENCY = 10;
 const ID_CHARS = '23456789abcdefghjkmnpqrstuvwxyz';
 
 // 6 排，每排 4 个大组、每组 2 张课桌
@@ -69,7 +70,7 @@ function membersOf(doc) {
 function settingsOf(cls) {
   const s = Object.assign({}, DEFAULT_SETTINGS, cls && cls.settings);
   return {
-    mode: MODES[s.mode] ? s.mode : 'height',
+    mode: isMode(s.mode) ? s.mode : 'height',
     autoWeekly: s.autoWeekly === true,
     separate: Array.isArray(s.separate) ? s.separate : [],
   };
@@ -88,14 +89,41 @@ async function loadClass(classId, openid, need) {
   return { id, cls, owned };
 }
 
+/**
+ * 旧版本导入 Excel 后没有更新 studentIdTop，名单里可能有重复的学生编号。
+ * 按名单顺序给重复的编号重新分配（结果是确定的，每次读取都一样），下次保存名单时写回数据库。
+ */
+function uniqueIds(students) {
+  const valid = (id) => typeof id === 'number' && isFinite(id);
+  let next = students.reduce((max, s) => (valid(s.id) ? Math.max(max, s.id + 1) : max), 1);
+  const seen = new Set();
+  return students.map((s) => {
+    if (valid(s.id) && !seen.has(s.id)) {
+      seen.add(s.id);
+      return s;
+    }
+    return Object.assign({}, s, { id: next++ });
+  });
+}
+
 async function loadStudents(id) {
   const doc = await getDoc(classStudents, id);
-  return { students: cleanStudents(doc && doc.students), top: (doc && doc.studentIdTop) || 1 };
+  const students = uniqueIds(cleanStudents(doc && doc.students));
+  const top = students.reduce((max, s) => Math.max(max, s.id + 1), (doc && doc.studentIdTop) || 1);
+  return { students, top };
+}
+
+/** 座位表中的姓名去掉首尾空格（旧版本导入的姓名可能带空格） */
+function cleanArrangement(arrangement) {
+  if (!Array.isArray(arrangement)) return [];
+  return arrangement.map((row) =>
+    (Array.isArray(row) ? row : []).map((v) => (v === null || v === undefined ? null : typeof v === 'string' ? v.trim() : String(v)))
+  );
 }
 
 async function loadArrangement(id) {
   const doc = await getDoc(classArrangements, id);
-  return (doc && Array.isArray(doc.arrangement) && doc.arrangement) || [];
+  return cleanArrangement(doc && doc.arrangement);
 }
 
 async function loadSeats(id) {
@@ -238,7 +266,7 @@ async function getClass(event, openid) {
     name: cls.name || '未命名班级',
     owned,
     seats,
-    arrangement: (arrDoc && Array.isArray(arrDoc.arrangement) && arrDoc.arrangement) || [],
+    arrangement: cleanArrangement(arrDoc && arrDoc.arrangement),
     arrangedAt: (arrDoc && arrDoc.arrangedAt) || null,
     arrangedBy: (arrDoc && arrDoc.arrangedBy) || null,
     // 名单（含身高）和设置只给创建者看
@@ -253,10 +281,19 @@ async function updateClass(event, openid) {
   const data = {};
   const result = {};
   if (event.name !== undefined) data.name = result.name = cleanText(event.name, '班级名称', 20);
-  if (event.settings && typeof event.settings === 'object') {
-    const next = settingsOf({ settings: Object.assign(settingsOf(cls), event.settings) });
-    next.separate = cleanPairs(next.separate, (await loadStudents(id)).students);
-    data.settings = _.set(next);
+  const changes = event.settings && typeof event.settings === 'object' ? event.settings : null;
+  if (changes) {
+    const next = settingsOf(cls);
+    // 只更新这次修改的字段，避免几乎同时的两次修改互相覆盖
+    if ('mode' in changes) {
+      if (!isMode(changes.mode)) fail('未知的排座方式');
+      next.mode = data['settings.mode'] = changes.mode;
+    }
+    if ('autoWeekly' in changes) next.autoWeekly = data['settings.autoWeekly'] = changes.autoWeekly === true;
+    if ('separate' in changes) {
+      next.separate = cleanPairs(changes.separate, (await loadStudents(id)).students);
+      data['settings.separate'] = _.set(next.separate);
+    }
     result.settings = next;
   }
   if (Object.keys(data).length) await classes.doc(id).update({ data });
@@ -321,7 +358,7 @@ async function deleteStudent(event, openid) {
   const pairs = cleanPairs(settings.separate, rest);
   if (pairs.length !== settings.separate.length) {
     settings.separate = pairs;
-    tasks.push(classes.doc(id).update({ data: { settings: _.set(settings) } }));
+    tasks.push(classes.doc(id).update({ data: { 'settings.separate': _.set(pairs) } }));
   }
   await Promise.all(tasks);
   return { students: rest, arrangement, settings };
@@ -332,11 +369,12 @@ async function deleteStudent(event, openid) {
 async function saveLayout(event, openid) {
   const { id } = await loadClass(event.classId, openid, 'owner');
   const seats = validateSeats(event.seats);
-  const fitted = fitToLayout(await loadArrangement(id), seats);
+  const current = await loadArrangement(id);
+  const fitted = fitToLayout(current, seats);
   await classSeats.doc(id).set({ data: { seats } });
-  const arrangement = fitted || [];
-  await saveArrangement(id, arrangement);
-  return { seats, arrangement, cleared: fitted === null };
+  // 放不下原来的座位表时保留它：改回原来的布局就能恢复，重新排座时会被替换
+  if (fitted) await saveArrangement(id, fitted);
+  return { seats, arrangement: fitted || current, fits: fitted !== null };
 }
 
 async function arrangeClass(id, cls, mode, by) {
@@ -351,11 +389,9 @@ async function arrangeClass(id, cls, mode, by) {
 async function arrangeSeats(event, openid) {
   const { id, cls } = await loadClass(event.classId, openid, 'owner');
   const settings = settingsOf(cls);
-  const mode = MODES[event.mode] ? event.mode : settings.mode;
+  const mode = isMode(event.mode) ? event.mode : settings.mode;
   const result = await arrangeClass(id, cls, mode, 'manual');
-  if (mode !== settings.mode) {
-    await classes.doc(id).update({ data: { settings: _.set(Object.assign(settings, { mode })) } });
-  }
+  if (mode !== settings.mode) await classes.doc(id).update({ data: { 'settings.mode': mode } });
   return { arrangement: result.arrangement, unresolved: result.unresolved, mode, arrangedAt: result.arrangedAt };
 }
 
@@ -393,18 +429,21 @@ async function autoArrangeAll() {
   let done = 0;
   let skipped = 0;
   for (let offset = 0; ; offset += batch) {
-    const { data } = await classes.where({ 'settings.autoWeekly': true }).skip(offset).limit(batch).get();
-    await Promise.all(
-      data.map((cls) =>
-        arrangeClass(cls._id, cls, settingsOf(cls).mode, 'auto').then(
-          () => done++,
-          (e) => {
-            skipped++;
-            console.warn('自动重排跳过', cls._id, e.message);
-          }
+    const { data } = await classes.where({ 'settings.autoWeekly': true }).orderBy('_id', 'asc').skip(offset).limit(batch).get();
+    // 每次同时处理少量班级，避免数据库并发过高
+    for (let i = 0; i < data.length; i += AUTO_CONCURRENCY) {
+      await Promise.all(
+        data.slice(i, i + AUTO_CONCURRENCY).map((cls) =>
+          arrangeClass(cls._id, cls, settingsOf(cls).mode, 'auto').then(
+            () => done++,
+            (e) => {
+              skipped++;
+              console.warn('自动重排跳过', cls._id, e.message);
+            }
+          )
         )
-      )
-    );
+      );
+    }
     if (data.length < batch) break;
   }
   console.log(`自动重排完成：${done} 个班级，跳过 ${skipped} 个`);

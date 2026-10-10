@@ -54,10 +54,10 @@ tests/                     自动化测试
 1. 用微信开发者工具打开 `Easeat-wx`。云开发环境 ID 写在 `Easeat-wx/utils/platform.js` 的 `cloudEnv` 里。
 2. **数据库**：需要 `class`、`classStudent`、`classUser`、`classSeat`、`classArrangement` 五个集合（旧版本已经建好，原有数据可以直接使用）。小程序端不直接读写数据库，建议把这五个集合的权限都设为「所有用户不可读写」，云函数不受影响。
 3. **云函数**：分别右键 `cloudfunctions/easeat` 和 `cloudfunctions/parseRoster`，选择「上传并部署：云端安装依赖」。
-4. 在云开发控制台把 `easeat` 云函数的**超时时间改为 20 秒**，每周自动重排时需要处理所有开启了该功能的班级。
+4. 在云开发控制台把 `easeat` 和 `parseRoster` 云函数的**超时时间改为 20 秒**：每周自动重排时需要处理所有开启了该功能的班级，读取较大的 Excel 文件也需要一些时间。
 5. **定时触发器**：右键 `cloudfunctions/easeat/config.json`，选择「上传触发器」（每周一 06:00，北京时间）。
 6. **隐私保护指引**：在小程序管理后台的「用户隐私保护指引」中声明「剪切板」（复制班级 ID、复制座位表）和「选中的文件」（导入 Excel 名单），否则这两个功能会被微信拦截。
-7. 新版本发布、用户都更新后，可以在云开发控制台删除旧版本的云函数：`addStudent`、`addStudentByFile`、`changeData`、`createClass`、`deleteClass`、`deleteStudent`、`getArrangement`、`getClassList`、`getSeat`、`getStudents`、`joinClass`、`notice`（连同它的定时触发器）、`quitClass`、`rearrangeSeat`、`setSeat`。`meta` 集合也不再使用。
+7. **新版本发布后尽快删除旧版本的云函数**：`addStudent`、`addStudentByFile`、`changeData`、`createClass`、`deleteClass`、`deleteStudent`、`getArrangement`、`getClassList`、`getSeat`、`getStudents`、`joinClass`、`notice`（连同它的定时触发器）、`quitClass`、`rearrangeSeat`、`setSeat`。旧云函数没有权限检查，任何加入班级的人都能用它们修改名单和座位；删除后，还没更新的旧版小程序会提示出错，重新打开即可更新。`meta` 集合也不再使用。
 
 ## 部署（QQ 版）
 

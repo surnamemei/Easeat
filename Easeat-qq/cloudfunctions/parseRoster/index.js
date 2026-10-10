@@ -7,6 +7,7 @@ const cloud = require('qq-server-sdk');
 const xlsx = require('node-xlsx');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
+const db = cloud.database();
 
 const MAX_ROWS = 300;
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
@@ -16,12 +17,21 @@ function cell(value) {
   return value === null || value === undefined ? '' : String(value).slice(0, 40);
 }
 
+/** 只有班级的创建者可以读取这个班上传的名单 */
+async function isOwner(classId, openid) {
+  try {
+    return (await db.collection('class').doc(classId).get()).data.owner === openid;
+  } catch (e) {
+    return false;
+  }
+}
+
 exports.main = async (event) => {
   const { OPENID } = cloud.getQQContext();
   const fileID = String(event.fileID || '');
-  if (!OPENID || !/\/NameLists\/[0-9a-z]+-\d+\.(xlsx|xls|csv)$/i.test(fileID)) {
-    return { ok: false, msg: '文件上传失败，请重试' };
-  }
+  const match = /\/NameLists\/([0-9a-z]+)-\d+\.(xlsx|xls|csv)$/i.exec(fileID);
+  if (!OPENID || !match) return { ok: false, msg: '文件上传失败，请重试' };
+  if (!(await isOwner(match[1], OPENID))) return { ok: false, msg: '只有班级的创建者可以导入名单' };
   try {
     const file = await cloud.downloadFile({ fileID });
     if (file.fileContent.length > MAX_FILE_SIZE) return { ok: false, msg: '文件太大了，请只保留姓名和身高两列' };

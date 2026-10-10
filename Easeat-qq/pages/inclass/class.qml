@@ -225,7 +225,7 @@
 </view>
 
 <!-- 生成图片用的画布，不显示在页面上 -->
-<canvas type="2d" id="chart-canvas" class="chart-canvas"></canvas>
+<canvas type="2d" id="chart-canvas" class="chart-canvas" style="width: {{canvasSize.width}}px; height: {{canvasSize.height}}px;"></canvas>
 
 <input-dialog
   qq:if="{{dialog}}"

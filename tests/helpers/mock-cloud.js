@@ -99,11 +99,16 @@ function createDatabase() {
 
   function collection(name) {
     const docs = table(name);
-    const query = (q, skip = 0, limit = 100) => {
-      const list = () => [...docs.values()].filter((d) => matches(d, q));
+    const query = (q, skip = 0, limit = 100, order = null) => {
+      const list = () => {
+        const hits = [...docs.values()].filter((d) => matches(d, q));
+        if (order) hits.sort((a, b) => (getPath(a, order[0]) < getPath(b, order[0]) ? -1 : 1) * (order[1] === 'desc' ? -1 : 1));
+        return hits;
+      };
       return {
-        skip: (n) => query(q, n, limit),
-        limit: (n) => query(q, skip, n),
+        skip: (n) => query(q, n, limit, order),
+        limit: (n) => query(q, skip, n, order),
+        orderBy: (field, dir) => query(q, skip, limit, [field, dir]),
         async get() {
           return { data: list().slice(skip, skip + limit).map(clone) };
         },

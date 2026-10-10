@@ -9,6 +9,8 @@
 })(this, function () {
   const MAX_NAME = 20;
   const HEADER = /^(序号|编号|学号|姓名|名字|学生|学生姓名|name|no\.?|id)$/i;
+  // 表格标题行，例如“高一（3）班学生名单”
+  const TITLE = /名单|花名册|名册|信息表|统计表|座位表/;
 
   function charLength(s) {
     return Array.from(s).length;
@@ -42,7 +44,7 @@
         cells = cells.slice(1);
       }
       const name = cleanName(cells[0]);
-      if (!name || HEADER.test(name) || /^\d+(\.\d+)?$/.test(name)) continue;
+      if (!name || HEADER.test(name) || TITLE.test(name) || /^\d+(\.\d+)?$/.test(name)) continue;
       out.push({ name, height: parseHeight(cells[1]) });
     }
     return out;

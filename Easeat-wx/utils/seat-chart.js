@@ -108,14 +108,16 @@
     if (matchesLayout(arrangement, seats)) {
       arrangement.forEach((row) =>
         row.forEach((name) => {
-          if (typeof name === 'string' && name) count.set(name, (count.get(name) || 0) + 1);
+          const key = typeof name === 'string' ? name.trim() : '';
+          if (key) count.set(key, (count.get(key) || 0) + 1);
         })
       );
     }
     const out = [];
     for (const s of students) {
-      const n = count.get(s.name) || 0;
-      if (n > 0) count.set(s.name, n - 1);
+      const key = String(s.name).trim();
+      const n = count.get(key) || 0;
+      if (n > 0) count.set(key, n - 1);
       else out.push(s.name);
     }
     return out;

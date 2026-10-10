@@ -30,12 +30,13 @@ function createMiniProgram(options = {}) {
   let pending = 0;
   const storage = {};
   const modalAnswers = [];
-  const log = { toasts: [], modals: [], navigations: [], titles: [], clipboard: null, actionSheets: [], errors: [] };
+  const log = { calls: [], toasts: [], modals: [], navigations: [], titles: [], clipboard: null, actionSheets: [] };
 
   const api = {
     cloud: {
       init() {},
       callFunction({ name, data, success, fail }) {
+        log.calls.push(data.action || name);
         pending++;
         (async () => {
           if (!functions[name]) throw { errMsg: `cloud.callFunction:fail FUNCTION_NOT_FOUND ${name}` };

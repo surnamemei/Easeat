@@ -50,6 +50,7 @@ Page({
     open: { roster: false, rules: false, layout: false, share: false },
     draft: null,
     draftView: [],
+    canvasSize: { width: 300, height: 300 },
     newName: '',
     newHeight: '',
     showBatch: false,
@@ -120,7 +121,7 @@ Page({
   // ------------------------------------------------------------ 座位表
 
   tapSeat(e) {
-    if (!this.data.owned) return;
+    if (!this.data.owned || this.busy) return;
     const { r, c } = e.currentTarget.dataset;
     const { selected, arrangement, grid } = this.data;
     if (!arrangement.length) {
@@ -139,9 +140,12 @@ Page({
   },
 
   async swapSeats(a, b) {
+    // 等待云函数返回期间不响应点击，避免重复交换
+    this.busy = true;
+    this.setData({ selected: null });
     const res = await api.run('swapSeats', { classId: this.data.classId, a: [a.r, a.c], b: [b.r, b.c] }, { loading: false });
+    this.busy = false;
     if (res) this.update({ arrangement: res.arrangement });
-    else this.setData({ selected: null });
   },
 
   showSeatDialog() {
@@ -185,12 +189,18 @@ Page({
     }
   },
 
-  selectMode(e) {
+  async selectMode(e) {
     const mode = e.currentTarget.dataset.mode;
-    if (mode === this.data.settings.mode) return;
+    const previous = this.data.settings.mode;
+    if (mode === previous) return;
     this.update({ settings: Object.assign({}, this.data.settings, { mode }) });
-    // 记住老师选择的方式，每周自动重排也会用它
-    api.call('updateClass', { classId: this.data.classId, settings: { mode } }).catch((err) => console.warn(err));
+    // 记住老师选择的方式，每周自动重排也会用它；保存失败时恢复原来的选择
+    try {
+      await api.call('updateClass', { classId: this.data.classId, settings: { mode } });
+    } catch (err) {
+      this.update({ settings: Object.assign({}, this.data.settings, { mode: previous }) });
+      api.showError(err.message);
+    }
   },
 
   arrange() {
@@ -246,43 +256,50 @@ Page({
   },
 
   saveImage() {
+    const unsupported = '当前版本不支持生成图片，请更新到最新版本，或使用「复制到 Excel」。';
+    const size = chart.measure(this.data.seats);
     qq.showLoading({ title: '正在生成', mask: true });
-    qq.createSelectorQuery()
-      .select('#chart-canvas')
-      .fields({ node: true, size: true })
-      .exec((res) => {
-        const canvas = res && res[0] && res[0].node;
-        if (!canvas) {
-          qq.hideLoading();
-          return api.showError('当前版本不支持生成图片，请更新到最新版本，或使用「复制到 Excel」。');
-        }
-        const size = chart.measure(this.data.seats);
-        const ratio = Math.min(pixelRatio(), 3, 4000 / size.width, 4000 / size.height);
-        canvas.width = Math.round(size.width * ratio);
-        canvas.height = Math.round(size.height * ratio);
-        const ctx = canvas.getContext('2d');
-        ctx.scale(ratio, ratio);
-        chart.draw(ctx, {
-          title: `${this.data.name} 座位表`,
-          subtitle: this.data.arrangedAt ? `排座时间：${formatTime(this.data.arrangedAt)}` : '',
-          seats: this.data.seats,
-          arrangement: this.data.arrangement,
-          flip: this.data.flip,
-        });
-        qq.canvasToTempFilePath({
-          canvas,
-          fileType: 'png',
-          success: (file) => {
+    // 画布的显示尺寸和图片一致，导出时就不会被裁剪或缩放
+    this.setData({ canvasSize: size }, () => {
+      qq.createSelectorQuery()
+        .select('#chart-canvas')
+        .fields({ node: true, size: true })
+        .exec((res) => {
+          try {
+            const canvas = res && res[0] && res[0].node;
+            const ctx = canvas && canvas.getContext('2d');
+            if (!ctx) throw new Error(unsupported);
+            const ratio = Math.min(pixelRatio(), 3, 4000 / size.width, 4000 / size.height);
+            canvas.width = Math.round(size.width * ratio);
+            canvas.height = Math.round(size.height * ratio);
+            ctx.scale(ratio, ratio);
+            chart.draw(ctx, {
+              title: `${this.data.name} 座位表`,
+              subtitle: this.data.arrangedAt ? `排座时间：${formatTime(this.data.arrangedAt)}` : '',
+              seats: this.data.seats,
+              arrangement: this.data.arrangement,
+              flip: this.data.flip,
+            });
+            qq.canvasToTempFilePath({
+              canvas,
+              fileType: 'png',
+              success: (file) => {
+                qq.hideLoading();
+                // 在预览中长按图片即可保存到相册或发送给朋友
+                qq.previewImage({ urls: [file.tempFilePath] });
+              },
+              fail: (err) => {
+                qq.hideLoading();
+                api.showError(`生成图片失败：${err.errMsg}`);
+              },
+            });
+          } catch (err) {
+            console.error(err);
             qq.hideLoading();
-            // 在预览中长按图片即可保存到相册或发送给朋友
-            qq.previewImage({ urls: [file.tempFilePath] });
-          },
-          fail: (err) => {
-            qq.hideLoading();
-            api.showError(`生成图片失败：${err.errMsg}`);
-          },
+            api.showError(err.message === unsupported ? unsupported : `生成图片失败：${err.message}`);
+          }
         });
-      });
+    });
   },
 
   // ------------------------------------------------------------ 学生名单
@@ -475,10 +492,14 @@ Page({
     if (!res) return;
     this.update({ seats: res.seats, arrangement: res.arrangement });
     this.setDraft(res.seats);
-    if (res.cleared) {
-      qq.showModal({ title: '布局已保存', content: '课桌变少了，原来的座位表放不下，已经清空。请点「重新排座」。', showCancel: false });
-    } else {
+    if (res.fits) {
       qq.showToast({ title: '已保存', icon: 'success' });
+    } else {
+      qq.showModal({
+        title: '布局已保存',
+        content: '新布局放不下原来的座位表，请点「重新排座」。原来的座位表暂时保留，改回原来的布局就能恢复。',
+        showCancel: false,
+      });
     }
   },
 

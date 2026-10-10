@@ -159,13 +159,19 @@ for (const platform of ['wx', 'qq']) {
     ok(await teacher('saveLayout', { classId: id, seats: [[true, true, true, true]] }));
     const { arrangement } = ok(await teacher('arrange', { classId: id }));
 
-    const grown = ok(await teacher('saveLayout', { classId: id, seats: [[true, true, true, true], [true, true, true, true]] }));
-    assert.equal(grown.cleared, false);
+    const twoRows = [[true, true, true, true], [true, true, true, true]];
+    const grown = ok(await teacher('saveLayout', { classId: id, seats: twoRows }));
+    assert.equal(grown.fits, true);
     assert.deepEqual(grown.arrangement[0], arrangement[0]);
 
+    // 放不下时保留原来的座位表，改回原来的布局就能恢复
     const shrunk = ok(await teacher('saveLayout', { classId: id, seats: [[true, false]] }));
-    assert.equal(shrunk.cleared, true);
-    assert.deepEqual(shrunk.arrangement, []);
+    assert.equal(shrunk.fits, false);
+    assert.deepEqual(shrunk.arrangement, grown.arrangement);
+    const restored = ok(await teacher('saveLayout', { classId: id, seats: twoRows }));
+    assert.equal(restored.fits, true);
+    assert.deepEqual(ok(await teacher('getClass', { classId: id })).arrangement, grown.arrangement);
+    ok(await teacher('saveLayout', { classId: id, seats: [[true, false]] }));
 
     err(await teacher('saveLayout', { classId: id, seats: [[false]] }), /至少要有一张课桌/);
     err(await teacher('saveLayout', { classId: id, seats: [[true], [true, true]] }), /布局数据有误/);
@@ -211,6 +217,46 @@ for (const platform of ['wx', 'qq']) {
     t.after(() => mock.restore());
     const res = await teacher('listClasses', { Type: 'Timer', TriggerName: 'weeklyRearrange' });
     assert.equal(res.ok, true);
+  });
+
+  test('settings changes made at the same time do not undo each other', async (t) => {
+    const { mock, teacher } = setup();
+    t.after(() => mock.restore());
+    const { id } = ok(await teacher('createClass', { name: '五班' }));
+    await Promise.all([
+      teacher('updateClass', { classId: id, settings: { mode: 'random' } }),
+      teacher('updateClass', { classId: id, settings: { autoWeekly: true } }),
+    ]);
+    assert.deepEqual(ok(await teacher('getClass', { classId: id })).settings, { mode: 'random', autoWeekly: true, separate: [] });
+    for (const mode of ['constructor', 'toString', '__proto__']) {
+      err(await teacher('updateClass', { classId: id, settings: { mode } }), /未知的排座方式/);
+    }
+  });
+
+  test('duplicate student ids and untrimmed names from the old version are repaired', async (t) => {
+    const { mock, teacher } = setup();
+    t.after(() => mock.restore());
+    const put = (name, doc) => mock.db.collection(name).add({ data: doc });
+    // 旧版本导入 Excel 后没有更新 studentIdTop，所以出现了重复的编号；姓名也可能带空格
+    await put('class', { _id: '2b7', name: '旧班', owner: 'teacher' });
+    await put('classStudent', {
+      _id: '2b7',
+      studentIdTop: 2,
+      students: [{ id: 1, name: '新同学', height: null }, { id: 1, name: '张三 ', height: 160 }, { id: 2, name: '李四', height: 150 }],
+    });
+    await put('classUser', { _id: '2b7', members: [] });
+    await put('classSeat', { _id: '2b7', seats: [[true, true, true]] });
+    await put('classArrangement', { _id: '2b7', arrangement: [['张三 ', '李四', '新同学']] });
+
+    const detail = ok(await teacher('getClass', { classId: '2b7' }));
+    assert.deepEqual(detail.students.map((s) => [s.id, s.name]), [[1, '新同学'], [3, '张三'], [2, '李四']]);
+    assert.deepEqual(detail.arrangement, [['张三', '李四', '新同学']]);
+
+    const after = ok(await teacher('deleteStudent', { classId: '2b7', studentId: 3 }));
+    assert.deepEqual(after.students.map((s) => s.name), ['新同学', '李四']);
+    assert.deepEqual(after.arrangement, [['', '李四', '新同学']]);
+    const added = ok(await teacher('addStudents', { classId: '2b7', text: '王五' })).students;
+    assert.equal(added[added.length - 1].id, 4);
   });
 
   test('classes created by the old version still work', async (t) => {

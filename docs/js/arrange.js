@@ -15,6 +15,10 @@
     rotate: '大组轮换',
   };
 
+  function isMode(mode) {
+    return typeof mode === 'string' && Object.prototype.hasOwnProperty.call(MODES, mode);
+  }
+
   /** 排座失败时抛出，message 可以直接展示给老师 */
   class ArrangeError extends Error {
     constructor(message) {
@@ -292,7 +296,7 @@
     options = options || {};
     const rand = options.random || Math.random;
     const mode = options.mode || 'height';
-    if (!MODES[mode]) throw new ArrangeError('未知的排座方式');
+    if (!isMode(mode)) throw new ArrangeError('未知的排座方式');
     const list = cleanStudents(students);
     const desks = countDesks(seats);
     if (!list.length) throw new ArrangeError('名单里还没有学生，请先添加学生。');
@@ -334,6 +338,7 @@
 
   return {
     MODES,
+    isMode,
     ArrangeError,
     arrange,
     fitToLayout,

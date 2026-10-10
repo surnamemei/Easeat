@@ -76,7 +76,11 @@ for (const platform of ['wx', 'qq']) {
     page.tapSeat(tap({ r: a.r, c: a.c }));
     assert.deepEqual(page.data.selected, { r: a.r, c: a.c, name: a.name });
     page.tapSeat(tap({ r: b.r, c: b.c }));
+    // 云函数还没返回时再点，不会再发出交换请求
+    page.tapSeat(tap({ r: b.r, c: b.c }));
+    page.tapSeat(tap({ r: a.r, c: a.c }));
     await app.settle();
+    assert.equal(app.log.calls.filter((c) => c === 'swapSeats').length, 1);
     assert.equal(page.data.selected, null);
     assert.equal(page.data.arrangement[a.r][a.c], b.name);
     assert.equal(page.data.arrangement[b.r][b.c], a.name);
