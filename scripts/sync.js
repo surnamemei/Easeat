@@ -24,7 +24,11 @@ const GENERATED = ['app.js', 'app.json', 'app.qss', 'pages', 'components', 'util
 const QQ_OWNED = ['utils/platform.js'];
 // 微信版里不需要复制的文件
 const SKIP = [/(^|\/)node_modules\//, /package-lock\.json$/, /^project\..*json$/, /^sitemap\.json$/, /^\.vscode\//, /^\.prettierrc\.js$/, /^utils\/platform\.js$/];
-const DOCS = { 'arrange.js': 'cloudfunctions/easeat/arrange.js', 'seat-chart.js': 'utils/seat-chart.js' };
+const DOCS = {
+  'arrange.js': 'cloudfunctions/easeat/arrange.js',
+  'roster.js': 'cloudfunctions/easeat/roster.js',
+  'seat-chart.js': 'utils/seat-chart.js',
+};
 
 function walk(dir, base = dir) {
   if (!fs.existsSync(dir)) return [];
