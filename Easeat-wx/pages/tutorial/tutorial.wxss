@@ -1,0 +1,49 @@
+/* pages/tutorial/tutorial.wxss */
+.add-class {
+    display: flex;
+  justify-content: space-evenly;
+  padding: 30rpx;
+  width: 600rpx;
+  }
+  .ty{
+    background-color: snow;
+    display: flex;
+    padding: 30rpx;
+    width: 80%;
+    text-align: center;
+    justify-content: center;
+  }
+  .log-list {
+    display: flex;
+    flex-direction: column;
+    padding: 50rpx;
+  }
+  button {
+    padding: 12rpx;
+    background-color: snow;
+  }
+  .function-block {
+    width: 95%;
+    border-bottom: 1rpx solid grey;
+    padding: 20rpx;
+  }
+  
+  .block-title {
+    display: flex;
+    padding: 20rpx;
+  }
+  
+  .block-title-text {
+    flex: 1;
+  }
+  
+  .block-title-symbol {
+    width: 3rem;
+    text-align: center;
+  }
+  .icon {
+    margin-right: 5px;
+    vertical-align: middle;
+    width: 1rem;
+    height: 1rem;
+  }

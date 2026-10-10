@@ -1,0 +1,42 @@
+{
+    "pages": [
+        "pages/index/index",
+        "pages/class/class",
+        "pages/personal/personal",
+        "pages/feedback/feedback",
+        "pages/about/about",
+        "pages/tutorial/tutorial",
+        "pages/notice/notice"
+    ],
+    "window": {
+        "backgroundTextStyle": "light",
+        "navigationBarBackgroundColor": "#fff",
+        "navigationBarTitleText": "QQ小程序",
+        "navigationBarTextStyle": "black"
+    },
+    "groupIdList": [
+        "910716617"
+    ],
+    "tabBar": {
+        "color": "#000000",
+        "selectedColor": "#32CD32",
+        "backgroundColor": "#FFFFFF",
+        "list": [
+            {
+                "pagePath": "pages/index/index",
+                "text": "首页",
+                "iconPath": "images/icon_home_line.png",
+                "selectedIconPath": "images/icon_home_fill.png",
+                "selectedColor": "#09BB07"
+            },
+            {
+                "pagePath": "pages/personal/personal",
+                "text": "我的",
+                "iconPath": "images/icon_me_line.png",
+                "selectedIconPath": "images/icon_me_fill.png",
+                "selectedColor": "#09BB07"
+            }
+        ]
+    },
+    "sitemapLocation": "sitemap.json"
+}

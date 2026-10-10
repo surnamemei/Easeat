@@ -1,0 +1,13 @@
+# Dependencies (installed in the cloud when deploying cloud functions)
+node_modules/
+
+# Per-developer WeChat/QQ DevTools settings
+project.private.config.json
+*-GT502.json
+.vscode/
+
+# Database exports contain users' OpenIDs and students' names — never publish
+database/
+
+# Backup of the old nested git repo for Easeat-wx (remote: git.weixin.qq.com)
+.easeat-wx-legacy.git/

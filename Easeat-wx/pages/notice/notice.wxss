@@ -1,0 +1,14 @@
+.page {
+    padding-top: 5vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-bottom: 200rpx;
+  }
+  button {
+    padding: 12rpx;
+    background-color: snow;
+    width:300rpx;
+    align-items: center;
+  }
+  

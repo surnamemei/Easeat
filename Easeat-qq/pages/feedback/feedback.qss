@@ -1,0 +1,28 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 200rpx;
+}
+
+
+.copiable {
+  display: flex;
+  padding: 40rpx;
+}
+
+.function-block {
+  width: 95%;
+  /* border-bottom: 1rpx solid grey; */
+  padding: 20rpx;
+}
+button {
+    padding: 12rpx;
+    display: flex;
+    background-color: rgb(65, 161, 65);
+    
+    align-items: center;
+    justify-content: center;
+    padding-left: 10rpx;
+    padding-right: 10rpx;
+  }

@@ -1,0 +1,8 @@
+<view class="page">
+    <image src="/images/logo.svg" style="width: 60vmin; height: 60vmin;" />
+    <text style="width: 80%;">
+        易位，英文名为eaSEAT，由武汉英中高级中学的学生团队开发，用于帮助老师们排座位。
+
+        当前实现了基础的编辑教室，上传学生名单和随机排座位功能，后续会继续更新自动重排，同桌黑白名单，和考虑分组等更多，敬请期待。
+    </text>
+</view>

@@ -1,0 +1,227 @@
+.set-dimensions {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  height: 4rem;
+}
+
+.name-list-block {
+  display: flex;
+  justify-content: space-around;
+  width: 100%;
+  height: 700rpx;
+}
+
+.add-student {
+  width: 80%;
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 200rpx;
+}
+
+.function-block {
+  width: 95%;
+  border-bottom: 1rpx solid grey;
+  padding: 20rpx;
+}
+
+.block-title {
+  display: flex;
+  padding: 20rpx;
+}
+
+.block-title-text {
+  flex: 1;
+}
+
+.block-title-symbol {
+  width: 3rem;
+  text-align: center;
+}
+
+.class-id-block {
+  display: flex;
+  padding: 20rpx;
+}
+
+.input-dimension {
+  width: 3rem;
+  text-align: center;
+  border-bottom-width: 1rpx;
+  border-bottom-style: dashed;
+}
+
+.input-student {
+  width: 6rem;
+  /* text-align: center; */
+  border-bottom-width: 1rpx;
+  border-bottom-style: dashed;
+}
+
+.icon {
+  margin-right: 5px;
+  vertical-align: middle;
+  width: 1rem;
+  height: 1rem;
+}
+
+button {
+  padding-left: 10rpx;
+  padding-right: 10rpx;
+}
+
+.discription {
+  font-size: 30rpx;
+  color: grey;
+}
+
+.table {
+  border: 0px solid rgb(235, 229, 229);
+}
+.tr {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  /* height: 2rem; */
+  align-items: center;
+  flex-direction: row;
+}
+
+.ty{
+  background-color: snow;
+  border-radius: 15rpx; 
+  padding: 10rpx; 
+  width: 160rpx; 
+  text-align: center;
+}
+
+.td {
+  justify-content: center;
+  display: flex;
+  align-items: center;
+  text-align: center;
+  height: 2.5rem;
+  font-size: 30rpx;
+  flex-direction: column;
+}
+
+.w-30 {
+  width: 30%;
+}
+
+.w-50 {
+  width: 3rem;
+}
+
+.bd {
+  border-style: solid;
+  border-width: 1px;
+}
+
+.bg-w {
+  background: snow;
+}
+.bg-g {
+  background: #e6f3f9;
+}
+.bg-b {
+  background-color: cornflowerblue;
+}
+.th {
+  width: 40%;
+  justify-content: center;
+  background: #3366ff;
+  color: #fff;
+  display: flex;
+  height: 3rem;
+  align-items: center;
+}
+
+.toast-box {
+    width: 100%;
+    height: 100%;
+    opacity: 1;
+    position: fixed;
+    top: 0px;
+    left: 0px;
+  }
+  
+  .toastbg {
+    opacity: 0.2;
+    background-color: black;
+    position: absolute;
+    width: 100%;
+    min-height: 100vh;
+  }
+  
+  .showToast {
+    position: absolute;
+    opacity: 1;
+    width: 70%;
+    margin-left: 15%;
+    margin-top: 40%;
+  }
+  
+  .toast-title {
+    padding-left: 5%;
+    background-color: #09e;
+    color: white;
+    padding-top: 2vh;
+    padding-bottom: 2vh;
+    border-top-right-radius: 16rpx;
+    border-top-left-radius: 16rpx;
+  }
+  
+  .toast-main {
+    padding-top: 2vh;
+    padding-bottom: 2vh;
+    background-color: white;
+    text-align: center;
+  }
+  
+  .toast-input {
+    margin-left: 5%;
+    margin-right: 5%;
+    border: 1px solid #ddd;
+    padding-left: 2vh;
+    padding-right: 2vh;
+    padding-top: 1vh;
+    padding-bottom: 1vh;
+  }
+  
+  .toast-button {
+    display: flex;
+  }
+  
+  .button1 {
+    width: 50%;
+  }
+  
+  .button2 {
+    width: 50%;
+  }
+  
+  .button1 button {
+    width: 100%;
+    background-color: white;
+    color: red;
+    border-radius: 0px;
+    border-bottom-left-radius: 16rpx;
+  }
+  
+  .button2 button {
+    width: 100%;
+    background-color: white;
+    color: black;
+    border-radius: 0px;
+    border-bottom-right-radius: 16rpx;
+  }

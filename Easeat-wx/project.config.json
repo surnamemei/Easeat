@@ -1,0 +1,78 @@
+{
+    "projectid": "1112167144_%E6%98%93%E4%BD%8D%2B%E4%BA%91",
+    "setting": {
+        "urlCheck": false,
+        "es6": true,
+        "enhance": true,
+        "postcss": true,
+        "preloadBackgroundData": false,
+        "minified": true,
+        "newFeature": true,
+        "coverView": true,
+        "nodeModules": true,
+        "autoAudits": false,
+        "showShadowRootInWxmlPanel": true,
+        "scopeDataCheck": false,
+        "uglifyFileName": true,
+        "checkInvalidKey": true,
+        "checkSiteMap": true,
+        "uploadWithSourceMap": true,
+        "compileHotReLoad": false,
+        "lazyloadPlaceholderEnable": false,
+        "useMultiFrameRuntime": true,
+        "useApiHook": true,
+        "useApiHostProcess": true,
+        "babelSetting": {
+            "ignore": [],
+            "disablePlugins": [],
+            "outputPath": ""
+        },
+        "useIsolateContext": true,
+        "userConfirmedBundleSwitch": false,
+        "packNpmManually": false,
+        "packNpmRelationList": [],
+        "minifyWXSS": true,
+        "disableUseStrict": false,
+        "showES6CompileOption": false,
+        "useCompilerPlugins": false,
+        "minifyWXML": true,
+        "useStaticServer": true
+    },
+    "qqLibVersion": "1.19.0",
+    "compileType": "miniprogram",
+    "createTime": 1643980583238,
+    "accessTime": 1643980583238,
+    "packOptions": {
+        "ignore": [],
+        "include": []
+    },
+    "qqappid": "1112167144",
+    "projectname": "%E6%98%93%E4%BD%8D",
+    "cloudfunctionRoot": "cloudfunctions/",
+    "appid": "wxb96c48eebf2c0d60",
+    "libVersion": "2.24.4",
+    "cloudfunctionTemplateRoot": "cloudfunctionTemplate/",
+    "condition": {
+        "miniprogram": {
+            "list": [
+                {
+                    "name": "index",
+                    "pathName": "pages/index/index",
+                    "query": "",
+                    "scene": ""
+                },
+                {
+                    "name": "class",
+                    "pathName": "pages/inclass/class",
+                    "query": "",
+                    "scene": ""
+                }
+            ]
+        }
+    },
+    "editorSetting": {
+        "tabIndent": "insertSpaces",
+        "tabSize": 4
+    },
+    "description": "项目配置文件，详见文档：https://developers.weixin.qq.com/miniprogram/dev/devtools/projectconfig.html"
+}
