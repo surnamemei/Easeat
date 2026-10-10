@@ -1,19 +1,30 @@
-const formatTime = date => {
-  const year = date.getFullYear()
-  const month = date.getMonth() + 1
-  const day = date.getDate()
-  const hour = date.getHours()
-  const minute = date.getMinutes()
-  const second = date.getSeconds()
+const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 
-  return [year, month, day].map(formatNumber).join('/') + ' ' + [hour, minute, second].map(formatNumber).join(':')
+const pad = (n) => (n < 10 ? '0' + n : String(n));
+
+/** 时间戳 → “10月12日 周一 06:00”，不是今年时带上年份 */
+function formatTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  const year = d.getFullYear() === new Date().getFullYear() ? '' : d.getFullYear() + '年';
+  return `${year}${d.getMonth() + 1}月${d.getDate()}日 周${WEEKDAYS[d.getDay()]} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-const formatNumber = n => {
-  n = n.toString()
-  return n[1] ? n : '0' + n
+function readStorage(key, fallback) {
+  try {
+    const v = wx.getStorageSync(key);
+    return v === '' || v === undefined ? fallback : v;
+  } catch (e) {
+    return fallback;
+  }
 }
 
-module.exports = {
-  formatTime: formatTime
+function writeStorage(key, value) {
+  try {
+    wx.setStorageSync(key, value);
+  } catch (e) {
+    console.warn('setStorage', e);
+  }
 }
+
+module.exports = { formatTime, readStorage, writeStorage };

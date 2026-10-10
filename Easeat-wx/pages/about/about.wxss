@@ -1,7 +1,41 @@
-.page {
-  padding-top: 5vh;
+.brand {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-bottom: 200rpx;
+  padding: 40rpx 0 48rpx;
+}
+
+.brand-logo {
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: 44rpx;
+}
+
+.brand-name {
+  margin: 24rpx 0 4rpx;
+  font-size: 40rpx;
+  font-weight: 700;
+}
+
+.para {
+  margin-top: 12rpx;
+  font-size: 28rpx;
+  line-height: 1.8;
+  color: #3a4552;
+}
+
+.repo {
+  display: flex;
+  align-items: center;
+  margin-top: 20rpx;
+  padding: 16rpx 20rpx;
+  border-radius: 12rpx;
+  background: #f4f7f9;
+}
+
+.repo-text {
+  flex: 1;
+  font-size: 24rpx;
+  color: #4a5562;
+  word-break: break-all;
 }

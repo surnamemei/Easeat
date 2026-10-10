@@ -1,114 +1,243 @@
-/**app.wxss**/
-::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
-  color: transparent;
-}
-view {
-  box-sizing: border-box;
-  font-family: PingFangSC-Regular, Roboto, Helvetica Neue, Helvetica, Tahoma, Arial, PingFang SC-Light, Microsoft YaHei;
-}
-button {
-  margin: 0;
-  padding: 0;
-  border: 1px solid transparent;
-  outline: none;
-  background-color: transparent;
-}
-.container {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  padding: 200rpx 0;
-  box-sizing: border-box;
-}
-.flex-col {
-  display: flex;
-  flex-direction: column;
-}
-.flex-row {
-  display: flex;
-  flex-direction: row;
-}
-
-@import 'styles/weui.qss';
-@import 'styles/font.qss';
-@import 'styles/color.qss';
-@import 'styles/icon.qss';
-@import 'styles/ui.qss';
-@import 'styles/helper.qss';
-
+/* 易位 eaSEAT 全局样式。主色取自 logo 的天蓝色。 */
 page {
-  background-color: #f0eff5;
-  padding-bottom: 1rpx; /* 试图解决 load-more 底部 margin 不显示的问题 */
+  background-color: #f4f7f9;
+  color: #1f2933;
+  font-size: 30rpx;
+  line-height: 1.5;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
 }
-/**
- * 组件展示页相关
- */
+
+view,
+text,
+input,
+textarea,
+button,
+scroll-view {
+  box-sizing: border-box;
+}
+
 .page {
-  min-height: 100vh;
-  background-color: #f8f8f8;
+  padding: 24rpx 24rpx 60rpx;
 }
 
-.page__hd {
-  padding: 40px;
+/* 卡片 */
+.card {
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 28rpx 24rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 10rpx rgba(15, 40, 60, 0.04);
 }
 
-.page__bd {
-  padding-bottom: 40px;
+.card-header {
+  display: flex;
+  align-items: center;
 }
 
-.page__bd--spacing {
-  padding-left: 15px;
-  padding-right: 15px;
+.card-title {
+  flex: 1;
+  font-size: 32rpx;
+  font-weight: 600;
 }
 
-.page__ft {
-  padding-bottom: 10px;
+.card-extra {
+  font-size: 24rpx;
+  color: #6b7785;
+  margin-left: 16rpx;
+}
+
+.card-body {
+  margin-top: 24rpx;
+}
+
+.chevron {
+  width: 28rpx;
+  height: 28rpx;
+  margin-left: 16rpx;
+  opacity: 0.45;
+  transition: transform 0.2s;
+}
+
+.chevron.closed {
+  transform: rotate(-90deg);
+}
+
+.section-title {
+  margin: 36rpx 8rpx 16rpx;
+  font-size: 26rpx;
+  color: #6b7785;
+}
+
+/* 文字 */
+.muted {
+  color: #6b7785;
+  font-size: 26rpx;
+}
+
+.hint {
+  color: #6b7785;
+  font-size: 24rpx;
+  line-height: 1.7;
+}
+
+.warn {
+  color: #b45309;
+  background: #fff7e6;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+}
+
+.tag {
+  display: inline-block;
+  padding: 2rpx 14rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  color: #1683c0;
+  background: #e8f5f8;
+  vertical-align: middle;
+}
+
+/* 按钮。button 只在需要 open-type（分享、反馈等）时使用，其余用 view */
+.btn,
+button.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 84rpx;
+  margin: 0;
+  padding: 0 32rpx;
+  border-radius: 14rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  line-height: 84rpx;
+  color: #1f2933;
+  background: #eef2f6;
+  border: none;
+}
+
+button.btn::after {
+  border: none;
+}
+
+.btn.primary,
+button.btn.primary {
+  color: #ffffff;
+  background: #1683c0;
+}
+
+.btn.light,
+button.btn.light {
+  color: #1683c0;
+  background: #e8f5f8;
+}
+
+.btn.danger {
+  color: #d93a3f;
+  background: #fdeeee;
+}
+
+.btn.small,
+button.btn.small {
+  height: 60rpx;
+  line-height: 60rpx;
+  padding: 0 22rpx;
+  font-size: 26rpx;
+  border-radius: 12rpx;
+}
+
+.btn.disabled {
+  opacity: 0.45;
+}
+
+.btn-hover {
+  opacity: 0.7;
+}
+
+.btn-row {
+  display: flex;
+  margin: 0 -8rpx;
+}
+
+.btn-row .btn {
+  flex: 1;
+  margin: 0 8rpx;
+}
+
+/* 输入框 */
+.field {
+  height: 80rpx;
+  padding: 0 22rpx;
+  font-size: 30rpx;
+  background: #f4f7f9;
+  border-radius: 12rpx;
+}
+
+.placeholder {
+  color: #9aa5b1;
+}
+
+/* 列表 */
+.list {
+  background: #ffffff;
+  border-radius: 20rpx;
+  overflow: hidden;
+  margin-bottom: 24rpx;
+}
+
+.list-item {
+  display: flex;
+  align-items: center;
+  min-height: 104rpx;
+  padding: 0 28rpx;
+  border-bottom: 1rpx solid #eef2f6;
+}
+
+.list-item:last-child {
+  border-bottom: none;
+}
+
+.list-icon {
+  width: 40rpx;
+  height: 40rpx;
+  margin-right: 24rpx;
+  opacity: 0.8;
+}
+
+.list-label {
+  flex: 1;
+  font-size: 30rpx;
+}
+
+.list-arrow {
+  width: 16rpx;
+  height: 16rpx;
+  border-top: 3rpx solid #b8c1cb;
+  border-right: 3rpx solid #b8c1cb;
+  transform: rotate(45deg);
+}
+
+.list-hover {
+  background: #f4f7f9;
+}
+
+/* 空状态 */
+.empty {
+  padding: 60rpx 40rpx;
   text-align: center;
 }
 
-.page__title {
-  text-align: left;
-  font-size: 20px;
-  font-weight: 400;
+.empty-image {
+  width: 306rpx;
+  height: 200rpx;
+  opacity: 0.6;
 }
 
-.page__desc {
-  margin-top: 5px;
-  color: #888888;
-  text-align: left;
-  font-size: 14px;
-}
-.page__bd > .page__desc {
-  margin-left: 15px;
-}
-.page__bd.page__bd--spacing > .page__desc {
-  margin-left: 0;
-}
-
-.page__section-title {
-  margin-top: 1.2em;
-  margin-left: 15px;
-  margin-bottom: 0.6em;
-  /*color: #353535;*/
-  text-align: left;
-  font-size: 14px;
-  /*font-weight: bold;*/
-}
-
-.page__section-title--first {
-  margin-top: 0;
-}
-
-.page__bd--spacing > .page__section-title {
-  margin-left: 0;
-}
-
-.page__placeholder {
-  padding: 50px 0;
-  text-align: center;
+.empty-text {
+  display: block;
+  margin-top: 24rpx;
+  font-size: 26rpx;
+  color: #6b7785;
+  line-height: 1.7;
 }

@@ -1,49 +1,25 @@
-
-.add-class {
-    display: flex;
-  justify-content: space-evenly;
-  padding: 30rpx;
-  width: 600rpx;
-  }
-.ty{
-    background-color: snow;
-    display: flex;
-    padding: 30rpx;
-    width: 80%;
-    text-align: center;
-    justify-content: center;
-  }
-.log-list {
-    display: flex;
-    flex-direction: column;
-    padding: 50rpx;
-  }
-button {
-    padding: 12rpx;
-    background-color: snow;
-  }
-.function-block {
-  width: 95%;
-  border-bottom: 1rpx solid grey;
-  padding: 20rpx;
-}
-
-.block-title {
+.step {
   display: flex;
-  padding: 20rpx;
+  margin-top: 16rpx;
 }
 
-.block-title-text {
-  flex: 1;
-}
-
-.block-title-symbol {
-  width: 3rem;
+.step-no {
+  flex-shrink: 0;
+  width: 40rpx;
+  height: 40rpx;
+  margin: 4rpx 18rpx 0 0;
+  line-height: 40rpx;
   text-align: center;
+  border-radius: 50%;
+  font-size: 22rpx;
+  font-weight: 600;
+  color: #1683c0;
+  background: #e8f5f8;
 }
-.icon {
-  margin-right: 5px;
-  vertical-align: middle;
-  width: 1rem;
-  height: 1rem;
+
+.step-text {
+  flex: 1;
+  font-size: 28rpx;
+  line-height: 1.75;
+  color: #3a4552;
 }

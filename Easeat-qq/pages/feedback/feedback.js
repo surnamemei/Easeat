@@ -1,22 +1,20 @@
+const platform = require('../../utils/platform');
+const share = require('../../utils/share');
+
+const EMAIL = 'pr_eaSEAT@163.com';
+
 Page({
+  data: {
+    email: EMAIL,
+    isQQ: platform.isQQ,
+    qqGroupId: platform.qqGroupId || '',
+  },
   onLoad() {
-    
+    platform.showShareMenu();
   },
-  onShareAppMessage: function () {
-    qq.showShareMenu({
-  showShareItems: ['qq', 'qzone', 'wechatFriends', 'wechatMoment']
-})
+  copyEmail() {
+    qq.setClipboardData({ data: EMAIL });
   },
-  onShareAppMessage(res) {
-    if (res.from === 'button') {
-      // 来自页面内转发按钮
-      console.log(res.target)
-    }
-    return {
-      title: '易位',
-      path: '/pages/index/index',
-      imageUrl: '/images/logo.png',
-      shareType: "miniapp"
-    }
-  },
+  onShareAppMessage: share.appMessage,
+  onShareTimeline: share.timeline,
 });

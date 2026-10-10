@@ -50,7 +50,7 @@
     "projectname": "%E6%98%93%E4%BD%8D",
     "cloudfunctionRoot": "cloudfunctions/",
     "appid": "wxb96c48eebf2c0d60",
-    "libVersion": "2.24.4",
+    "libVersion": "3.3.4",
     "cloudfunctionTemplateRoot": "cloudfunctionTemplate/",
     "condition": {
         "miniprogram": {

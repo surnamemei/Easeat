@@ -1,5 +1,7 @@
 {
-  "navigationBarTitleText": "主页",
-  "usingComponents": {},
-  "enablePullDownRefresh": true
+  "navigationBarTitleText": "易位",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "input-dialog": "/components/input-dialog/index"
+  }
 }

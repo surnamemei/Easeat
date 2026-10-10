@@ -1,0 +1,10 @@
+{
+  "name": "parseRoster",
+  "version": "2.0.0",
+  "description": "易位 eaSEAT：读取上传的 Excel 名单",
+  "main": "index.js",
+  "dependencies": {
+    "node-xlsx": "~0.21.2",
+    "wx-server-sdk": "~3.0.4"
+  }
+}

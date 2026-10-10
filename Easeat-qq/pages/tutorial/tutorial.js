@@ -1,45 +1,93 @@
-Page({
-    data:{
-        bilibili:false,
-        tiktok:false,
-        show1:false,
-        show2:false,
-        show3:false,
-        show4:false
-    },
-    showbilibili:function(){
-        // this.setData({
-        //     bilibili:true,
-        // });
-    },
-    showtiktok:function(){
-        // this.setData({
-        //     tiktok:true,
-        // });
-    },
+const platform = require('../../utils/platform');
+const share = require('../../utils/share');
 
-  switch(e) {
-    let that = this;
-    let key = e.currentTarget.dataset.key;
-    that.setData({
-      [key]: !this.data[key],
-    });
+const SECTIONS = [
+  {
+    title: '老师：三步排好座位',
+    steps: [
+      '在首页点「创建班级」，输入班级名称。',
+      '在班级页打开「学生名单」，添加学生（身高可以不填）。',
+      '回到「座位表」，选好排座方式，点「重新排座」。',
+    ],
   },
-    onShareAppMessage: function () {
-    qq.showShareMenu({
-  showShareItems: ['qq', 'qzone', 'wechatFriends', 'wechatMoment']
-})
+  {
+    title: '添加学生的三种方法',
+    steps: [
+      '逐个添加：输入姓名和身高后点「添加」。',
+      '粘贴名单：点「粘贴名单」，每行写一个学生，例如“张三 165”。可以直接从 Excel 复制“姓名、身高”两列粘贴进来，电脑版也能用。',
+      '导入 Excel：点「导入 Excel」，从聊天记录里选择表格文件。第一列写姓名，第二列写身高（厘米），有没有表头、序号列都可以。',
+    ],
   },
-  onShareAppMessage(res) {
-    if (res.from === 'button') {
-      // 来自页面内转发按钮
-      console.log(res.target)
-    }
-    return {
-      title: '易位',
-      path: '/pages/index/index',
-      imageUrl: '/images/logo.png',
-      shareType: "miniapp"
-    }
+  {
+    title: '设置教室布局',
+    steps: [
+      '打开「教室布局」，用“排数”“列数”调整大小。',
+      '点格子切换：蓝色是课桌，灰色是空地。',
+      '整列空着就是过道，过道把教室分成几个大组，「大组轮换」会用到。',
+      '改完点「保存布局」。课桌够用时，原来的座位会尽量保留。',
+    ],
   },
+  {
+    title: '三种排座方式',
+    steps: [
+      '按身高：矮的同学坐前面，身高相近的同学每次随机交换位置，没填身高的同学随机安排。',
+      '完全随机：不考虑身高，所有人随机就座。',
+      '大组轮换：每个大组整体向右移一组，最右边的组移到最左边，前后排和同桌不变。需要先排过一次座位。',
+    ],
+  },
+  {
+    title: '手动调整座位',
+    steps: [
+      '点一个座位选中它，再点另一个座位，两人就交换了位置（也可以和空座位交换）。',
+      '选中后点「改姓名」，可以直接修改这个座位上的名字；留空表示这个座位空着。',
+      '点座位表右上角的「切换为讲台视角」，讲台会显示在下方，方便老师站在讲台上对照。',
+    ],
+  },
+  {
+    title: '排座规则',
+    steps: [
+      '不相邻的同学：选择两位同学添加后，排座时他们既不做同桌，也不坐前后桌。座位太紧张时可能无法完全分开，小程序会提醒你。',
+      '每周自动重排：打开后，每周一早上 6:00 会按当前选择的排座方式自动重新排座，打开小程序就能看到新座位。',
+    ],
+  },
+  {
+    title: '导出和分享',
+    steps: [
+      '点「导出」→「生成图片」，在图片预览里长按即可保存或转发到家长群。',
+      '点「导出」→「复制到 Excel / WPS」，打开表格选中一个单元格粘贴，每个名字自动占一格。',
+      '在「分享班级」里点「分享给学生和家长」，对方点开卡片就能加入班级、查看座位表。也可以把班级 ID 发给对方，在首页点「加入班级」输入。',
+    ],
+  },
+  {
+    title: '学生和家长',
+    steps: [
+      '点开老师分享的班级卡片，或在首页点「加入班级」输入班级 ID。',
+      '加入后在首页点班级名称即可查看最新座位表，也可以导出图片。',
+      '不想再看时，在首页点班级右边的「退出」。',
+    ],
+  },
+  {
+    title: '常见问题',
+    steps: [
+      '微信版和 QQ 版的数据不互通，请在同一个平台上创建和加入班级。',
+      '电脑版微信或 QQ 不能选择文件时，请使用「粘贴名单」。',
+      '提示“座位不够”时，请在「教室布局」里增加课桌。',
+      '遇到其他问题，可以在「我的」→「意见反馈」里告诉我们。',
+    ],
+  },
+];
+
+Page({
+  data: {
+    sections: SECTIONS.map((s, i) => Object.assign({ key: i, open: i === 0 }, s)),
+  },
+  onLoad() {
+    platform.showShareMenu();
+  },
+  toggle(e) {
+    const i = e.currentTarget.dataset.index;
+    this.setData({ [`sections[${i}].open`]: !this.data.sections[i].open });
+  },
+  onShareAppMessage: share.appMessage,
+  onShareTimeline: share.timeline,
 });

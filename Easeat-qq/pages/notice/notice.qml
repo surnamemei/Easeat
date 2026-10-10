@@ -1,11 +1,15 @@
 <view class="page">
-    <image src="/images/logo.svg" style="width: 60vmin; height: 60vmin;" />
-    <text>\n</text>
-    <button bindtap="tutorial">使用教程</button>
-    <text style="width: 80%;">
-        2022/08/05
-        1.	目前小程序支持QQ、微信、TIM平台，但是微信和QQ、TIM的数据不互通。
-        2.	目前仅QQ全平台，微信安卓、苹果端，TIM苹果端可享受程序全部内容，而微信电脑端，TIM安卓端由于版本兼容性的问题，暂不支持上传文件的功能，敬请谅解。
-        3.  如果发现小程序无法正常使用，请更新软件版本后重试。
-    </text>
+  <view qq:for="{{notes}}" qq:key="version" class="card">
+    <view class="card-header">
+      <view class="card-title">易位 {{item.version}}</view>
+      <view class="card-extra">{{item.date}}</view>
+    </view>
+    <view class="card-body">
+      <view qq:for="{{item.items}}" qq:for-item="line" qq:key="*this" class="note">
+        <view class="dot"></view>
+        <view class="note-text">{{line}}</view>
+      </view>
+    </view>
+  </view>
+  <view class="btn light" hover-class="btn-hover" bindtap="openTutorial">查看使用教程</view>
 </view>

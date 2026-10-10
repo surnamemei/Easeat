@@ -1,0 +1,9 @@
+{
+  "name": "easeat",
+  "version": "2.0.0",
+  "description": "易位 eaSEAT 云函数",
+  "main": "index.js",
+  "dependencies": {
+    "qq-server-sdk": "^1.2.2-beta.2"
+  }
+}

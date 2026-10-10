@@ -1,0 +1,14 @@
+{
+  "name": "easeat",
+  "version": "2.0.0",
+  "private": true,
+  "description": "易位 eaSEAT：帮老师自动排座位的微信 / QQ 小程序",
+  "scripts": {
+    "test": "node --test tests/",
+    "sync": "node scripts/sync.js",
+    "check": "node scripts/sync.js --check && node --test tests/"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

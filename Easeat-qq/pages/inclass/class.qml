@@ -1,0 +1,239 @@
+<view qq:if="{{loaded && failed}}" class="empty">
+  <image class="empty-image" src="/images/load_fail.png" />
+  <text class="empty-text">班级加载失败，下拉刷新重试。</text>
+</view>
+
+<view qq:if="{{loaded && !failed}}" class="page">
+  <!-- 班级信息 -->
+  <view class="card head">
+    <view class="head-main">
+      <view class="head-name">{{name}}</view>
+      <view class="head-meta">
+        <text class="tag">{{owned ? '我创建的' : '我加入的'}}</text>
+        <text class="muted head-id">ID {{classId}}</text>
+        <text qq:if="{{owned}}" class="muted"> · {{students.length}} 名学生</text>
+      </view>
+    </view>
+    <view qq:if="{{owned}}" class="btn small light" hover-class="btn-hover" bindtap="showRename">改名</view>
+  </view>
+
+  <!-- 座位表 -->
+  <view class="card">
+    <view class="card-header">
+      <view class="card-title">座位表</view>
+      <view qq:if="{{grid}}" class="card-extra link" bindtap="toggleFlip">{{flip ? '切换为学生视角' : '切换为讲台视角'}}</view>
+    </view>
+    <view qq:if="{{arrangedText}}" class="muted chart-time">{{arrangedText}}</view>
+
+    <view qq:if="{{!grid}}" class="warn chart-gap">还没有设置教室布局。{{owned ? '请在下方「教室布局」里设置课桌。' : ''}}</view>
+    <block qq:else>
+      <scroll-view scroll-x="{{grid.scroll}}" class="chart-scroll">
+        <view class="chart" style="width: {{grid.totalWidth}}rpx;">
+          <view qq:if="{{!flip}}" class="podium">讲 台</view>
+          <view qq:for="{{grid.rows}}" qq:for-item="row" qq:key="key" class="chart-row">
+            <block qq:for="{{row.cells}}" qq:for-item="cell" qq:key="key">
+              <view qq:if="{{cell.type === 'aisle'}}" class="cell aisle" style="width: {{grid.aisleWidth}}rpx;"></view>
+              <view qq:elif="{{cell.type === 'none'}}" class="cell none" style="width: {{grid.deskWidth}}rpx;"></view>
+              <view
+                qq:else
+                class="cell {{cell.type}} {{cell.wrap ? 'wrap' : ''}} {{selected && selected.r === cell.r && selected.c === cell.c ? 'selected' : ''}}"
+                style="width: {{grid.deskWidth}}rpx; font-size: {{cell.size}}rpx;"
+                data-r="{{cell.r}}"
+                data-c="{{cell.c}}"
+                bindtap="tapSeat"
+              >{{cell.name}}</view>
+            </block>
+          </view>
+          <view qq:if="{{flip}}" class="podium bottom">讲 台</view>
+        </view>
+      </scroll-view>
+
+      <view qq:if="{{selected && arrangement.length}}" class="select-bar">
+        <view class="select-text">已选中「{{selected.name || '空座位'}}」，点另一个座位和它交换</view>
+        <view class="btn small light" hover-class="btn-hover" bindtap="showSeatDialog">改姓名</view>
+        <view class="btn small select-cancel" hover-class="btn-hover" bindtap="clearSelected">取消</view>
+      </view>
+
+      <view qq:if="{{!grid.match && arrangement.length}}" class="warn chart-gap">教室布局修改过，原来的座位表对不上了，请重新排座。</view>
+      <view qq:elif="{{!grid.seated}}" class="hint center chart-gap">{{owned ? '还没有排座位。添加学生后点「重新排座」，也可以点座位手动填写姓名。' : '老师还没有排座位。'}}</view>
+      <view qq:elif="{{unseated.length}}" class="warn chart-gap">{{unseated.length}} 名学生还没有座位：{{unseatedText}}。点「重新排座」安排，或选中空座位填写姓名。</view>
+      <view qq:elif="{{owned && !selected}}" class="hint center chart-gap">点一个座位选中，再点另一个座位即可交换</view>
+    </block>
+
+    <block qq:if="{{owned}}">
+      <view class="modes">
+        <view
+          qq:for="{{modes}}"
+          qq:key="key"
+          class="mode {{settings.mode === item.key ? 'on' : ''}}"
+          data-mode="{{item.key}}"
+          bindtap="selectMode"
+        >{{item.name}}</view>
+      </view>
+      <view class="hint mode-desc">{{modeDesc}}</view>
+      <view class="btn-row">
+        <view class="btn primary" hover-class="btn-hover" bindtap="arrange">重新排座</view>
+        <view class="btn light" hover-class="btn-hover" bindtap="exportChart">导出</view>
+      </view>
+    </block>
+    <view qq:elif="{{grid && grid.seated}}" class="btn light export-only" hover-class="btn-hover" bindtap="exportChart">保存 / 导出座位表</view>
+  </view>
+
+  <block qq:if="{{owned}}">
+    <!-- 学生名单 -->
+    <view class="card">
+      <view class="card-header" bindtap="toggle" data-key="roster">
+        <view class="card-title">学生名单</view>
+        <view class="card-extra">{{students.length}} 人</view>
+        <image class="chevron {{open.roster ? '' : 'closed'}}" src="/images/drop_down.svg" />
+      </view>
+      <view qq:if="{{open.roster}}" class="card-body">
+        <view class="add-row">
+          <input class="field add-name" placeholder="姓名" placeholder-class="placeholder" maxlength="20" value="{{newName}}" bindinput="onNewName" />
+          <input class="field add-height" placeholder="身高(选填)" placeholder-class="placeholder" type="digit" value="{{newHeight}}" bindinput="onNewHeight" />
+          <view class="btn primary small add-btn" hover-class="btn-hover" bindtap="addOne">添加</view>
+        </view>
+        <view class="btn-row more-add">
+          <view class="btn light small" hover-class="btn-hover" bindtap="toggleBatch">{{showBatch ? '收起' : '粘贴名单'}}</view>
+          <view class="btn light small" hover-class="btn-hover" bindtap="importExcel">导入 Excel</view>
+        </view>
+        <view qq:if="{{showBatch}}" class="batch">
+          <textarea
+            class="batch-text"
+            placeholder="每行一个学生：姓名 身高（身高可不填）"
+            placeholder-class="placeholder"
+            maxlength="6000"
+            value="{{batchText}}"
+            bindinput="onBatchInput"
+          />
+          <view class="btn primary" hover-class="btn-hover" bindtap="addBatch">添加这些学生</view>
+        </view>
+        <view class="hint roster-hint">可以直接从 Excel 复制“姓名、身高”两列粘贴进来。导入 Excel 时第一列写姓名、第二列写身高（厘米），有没有表头都可以。</view>
+
+        <view qq:for="{{students}}" qq:key="id" class="student">
+          <text class="student-no">{{index + 1}}</text>
+          <text class="student-name">{{item.name}}</text>
+          <text class="student-height">{{item.height ? item.height + ' cm' : '—'}}</text>
+          <view class="student-del" hover-class="btn-hover" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="deleteStudent">删除</view>
+        </view>
+        <view qq:if="{{!students.length}}" class="hint center">名单还是空的</view>
+      </view>
+    </view>
+
+    <!-- 排座规则 -->
+    <view class="card">
+      <view class="card-header" bindtap="toggle" data-key="rules">
+        <view class="card-title">排座规则</view>
+        <view class="card-extra">{{settings.autoWeekly ? '每周自动重排' : ''}}{{settings.autoWeekly && pairs.length ? ' · ' : ''}}{{pairs.length ? pairs.length + ' 组不相邻' : ''}}</view>
+        <image class="chevron {{open.rules ? '' : 'closed'}}" src="/images/drop_down.svg" />
+      </view>
+      <view qq:if="{{open.rules}}" class="card-body">
+        <view class="rule">
+          <view class="rule-main">
+            <view class="rule-title">每周自动重排</view>
+            <view class="hint">每周一早上 6:00 按「{{modeName}}」自动重新排座，打开小程序就能看到新座位。</view>
+          </view>
+          <switch checked="{{settings.autoWeekly}}" color="#1683c0" bindchange="toggleAuto" />
+        </view>
+
+        <view class="rule-title pairs-title">不相邻的同学</view>
+        <view class="hint">排座时让这些同学既不做同桌，也不坐前后桌。</view>
+        <view qq:for="{{pairs}}" qq:key="key" class="pair">
+          <text class="pair-text">{{item.text}}</text>
+          <view class="pair-del" hover-class="btn-hover" data-key="{{item.key}}" bindtap="removePair">移除</view>
+        </view>
+        <view qq:if="{{students.length >= 2}}" class="pair-add">
+          <picker class="picker" range="{{students}}" range-key="name" value="{{pickA >= 0 ? pickA : 0}}" bindchange="onPickA">
+            <view class="picker-value {{pickA >= 0 ? '' : 'placeholder'}}">{{pickA >= 0 ? students[pickA].name : '选择同学'}}</view>
+          </picker>
+          <text class="pair-sep">↔</text>
+          <picker class="picker" range="{{students}}" range-key="name" value="{{pickB >= 0 ? pickB : 0}}" bindchange="onPickB">
+            <view class="picker-value {{pickB >= 0 ? '' : 'placeholder'}}">{{pickB >= 0 ? students[pickB].name : '选择同学'}}</view>
+          </picker>
+          <view class="btn primary small" hover-class="btn-hover" bindtap="addPair">添加</view>
+        </view>
+        <view qq:else class="hint">先在「学生名单」里添加学生。</view>
+      </view>
+    </view>
+
+    <!-- 教室布局 -->
+    <view class="card">
+      <view class="card-header" bindtap="toggle" data-key="layout">
+        <view class="card-title">教室布局</view>
+        <view class="card-extra">{{grid ? grid.desks + ' 张课桌' : '未设置'}}</view>
+        <image class="chevron {{open.layout ? '' : 'closed'}}" src="/images/drop_down.svg" />
+      </view>
+      <view qq:if="{{open.layout && draft}}" class="card-body">
+        <view class="hint">点格子切换：蓝色是课桌，灰色是空地。整列空着的地方是过道，用来划分大组。</view>
+        <view class="steppers">
+          <view class="stepper">
+            <text class="stepper-label">排数</text>
+            <view class="step" hover-class="btn-hover" data-delta="-1" bindtap="changeRows">−</view>
+            <text class="step-value">{{draftRows}}</text>
+            <view class="step" hover-class="btn-hover" data-delta="1" bindtap="changeRows">＋</view>
+          </view>
+          <view class="stepper">
+            <text class="stepper-label">列数</text>
+            <view class="step" hover-class="btn-hover" data-delta="-1" bindtap="changeCols">−</view>
+            <text class="step-value">{{draftCols}}</text>
+            <view class="step" hover-class="btn-hover" data-delta="1" bindtap="changeCols">＋</view>
+          </view>
+        </view>
+        <view class="draft">
+          <view class="podium small">讲 台</view>
+          <view qq:for="{{draftView}}" qq:for-item="row" qq:key="key" class="draft-row">
+            <view
+              qq:for="{{row.cells}}"
+              qq:for-item="cell"
+              qq:key="key"
+              class="draft-cell {{cell.on ? 'on' : ''}}"
+              style="width: {{draftCell}}rpx; height: {{draftCell}}rpx;"
+              data-r="{{row.key}}"
+              data-c="{{cell.key}}"
+              bindtap="toggleDesk"
+            ></view>
+          </view>
+        </view>
+        <view class="muted center draft-count">共 {{draftDesks}} 张课桌 · {{students.length}} 名学生</view>
+        <view class="btn-row">
+          <view class="btn" hover-class="btn-hover" bindtap="resetLayout">还原</view>
+          <view class="btn primary {{draftChanged ? '' : 'disabled'}}" hover-class="btn-hover" bindtap="saveLayout">保存布局</view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- 分享 -->
+  <view class="card">
+    <view class="card-header" bindtap="toggle" data-key="share">
+      <view class="card-title">分享班级</view>
+      <view qq:if="{{owned}}" class="card-extra">{{memberCount}} 人已加入</view>
+      <image class="chevron {{open.share ? '' : 'closed'}}" src="/images/drop_down.svg" />
+    </view>
+    <view qq:if="{{open.share}}" class="card-body">
+      <view class="id-box">
+        <view class="id-main">
+          <view class="muted">班级 ID</view>
+          <view class="id-text">{{classId}}</view>
+        </view>
+        <view class="btn small light" hover-class="btn-hover" bindtap="copyId">复制</view>
+      </view>
+      <button class="btn primary" hover-class="btn-hover" open-type="share">分享给学生和家长</button>
+      <view class="hint share-hint">对方点开分享卡片就能加入班级、查看座位表；也可以在易位首页点「加入班级」输入班级 ID。加入的人只能查看，不能修改。</view>
+    </view>
+  </view>
+</view>
+
+<!-- 生成图片用的画布，不显示在页面上 -->
+<canvas type="2d" id="chart-canvas" class="chart-canvas"></canvas>
+
+<input-dialog
+  qq:if="{{dialog}}"
+  title="{{dialog.title}}"
+  hint="{{dialog.hint}}"
+  placeholder="{{dialog.placeholder}}"
+  value="{{dialog.value}}"
+  maxlength="{{dialog.maxlength}}"
+  bindconfirm="onDialogConfirm"
+  bindcancel="closeDialog"
+/>

@@ -1,28 +1,25 @@
-.page {
+.intro {
+  margin: 12rpx 0 28rpx;
+}
+
+.group {
+  margin-top: 16rpx;
+}
+
+.email {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding-bottom: 200rpx;
+  margin-top: 28rpx;
+  padding: 20rpx 24rpx;
+  border-radius: 14rpx;
+  background: #f4f7f9;
 }
 
-
-.copiable {
-  display: flex;
-  padding: 40rpx;
+.email-main {
+  flex: 1;
 }
 
-.function-block {
-  width: 95%;
-  /* border-bottom: 1rpx solid grey; */
-  padding: 20rpx;
+.email-text {
+  font-size: 32rpx;
+  font-weight: 500;
 }
-button {
-    padding: 12rpx;
-    display: flex;
-    background-color: rgb(65, 161, 65);
-    
-    align-items: center;
-    justify-content: center;
-    padding-left: 10rpx;
-    padding-right: 10rpx;
-  }
