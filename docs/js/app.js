@@ -59,6 +59,8 @@
   });
 
   async function call(action, data) {
+    // 每次都重新读取保存的数据：另一个标签页可能刚刚修改过
+    db.reset();
     const res = await service.call(action, JSON.parse(JSON.stringify(data || {})), USER);
     if (!res.ok) {
       await ui.alert(res.msg);
@@ -175,7 +177,7 @@
     },
 
     /** 通用对话框：返回点击的按钮值；输入框的值在 result.value */
-    modal({ title, message, input, image, buttons }) {
+    modal({ title, message, input, textarea, image, buttons }) {
       const root = document.getElementById('modal-root');
       const previous = document.activeElement;
       return new Promise((resolve) => {
@@ -185,6 +187,7 @@
               <h2 id="modal-title">${esc(title)}</h2>
               ${message ? `<p>${esc(message)}</p>` : ''}
               ${input ? `<input type="text" id="modal-input" maxlength="${input.maxlength || 20}" placeholder="${esc(input.placeholder || '')}" value="${esc(input.value || '')}" aria-label="${esc(title)}">` : ''}
+              ${textarea ? `<textarea id="modal-input" placeholder="${esc(textarea.placeholder || '')}" ${textarea.readonly ? 'readonly' : ''} aria-label="${esc(title)}">${esc(textarea.value || '')}</textarea>` : ''}
               ${image ? `<img src="${image}" alt="座位表图片">` : ''}
               <div class="btn-row">
                 ${buttons.map((b, i) => `<button type="button" class="btn ${b.kind || ''}" data-i="${i}">${esc(b.text)}</button>`).join('')}
@@ -203,7 +206,7 @@
           if (e.key === 'Escape') {
             e.preventDefault();
             finish(null);
-          } else if (e.key === 'Enter' && field && document.activeElement === field) {
+          } else if (e.key === 'Enter' && field && field.tagName === 'INPUT' && document.activeElement === field) {
             e.preventDefault();
             finish(buttons.length - 1);
           }
@@ -211,6 +214,7 @@
         document.addEventListener('keydown', onKey, true);
         root.querySelectorAll('button[data-i]').forEach((btn) => btn.addEventListener('click', () => finish(Number(btn.dataset.i))));
         root.querySelector('.modal-backdrop').addEventListener('click', (e) => e.target === e.currentTarget && finish(null));
+        if (field && textarea && textarea.readonly) field.select();
         (field || root.querySelector('.btn-row .btn:last-child')).focus();
       });
     },
@@ -383,7 +387,8 @@
       <div class="home-actions">
         <button class="btn primary" data-action="create-class">新建班级</button>
         <button class="btn soft" data-action="create-demo">打开示例班级</button>
-        <button class="btn" data-action="import-backup">导入备份</button>
+        <button class="btn" data-action="import-backup">导入备份文件</button>
+        <button class="btn" data-action="paste-backup">粘贴备份内容</button>
         <button class="btn" data-action="export-backup" ${list.length ? '' : 'disabled'}>导出备份</button>
       </div>
       ${
@@ -398,12 +403,13 @@
 
   async function showClass(id, first) {
     setNav('home');
-    const cls = await call('getClass', { classId: id });
+    // open：只有打开班级时才检查本周的自动重排，操作后的刷新不检查
+    const cls = await call('getClass', { classId: id, open: first });
     if (!cls) {
       location.hash = '#/';
       return;
     }
-    if (first && cls.autoArranged) ui.toast('本周已自动重排');
+    if (cls.autoArranged) ui.toast('本周已自动重排');
     if (first) {
       state.draft = null;
       state.showPaste = false;
@@ -564,7 +570,9 @@
     const cols = draft[0].length;
     const desks = draft.reduce((n, row) => n + row.filter(Boolean).length, 0);
     const changed = JSON.stringify(draft) !== JSON.stringify(cls.seats);
-    const size = Math.max(18, Math.min(34, Math.floor(320 / cols)));
+    // 格子大小按可用宽度计算，手机上也不会撑出屏幕
+    const room = Math.min(app.clientWidth - 80, 440);
+    const size = Math.max(12, Math.min(34, Math.floor((room - (cols - 1) * 5) / cols)));
     return `
       <p class="muted small">点格子切换：蓝色是课桌，灰色是空地。整列空着的地方是过道，用来划分大组。</p>
       <div class="steppers">
@@ -578,13 +586,13 @@
           <button class="btn small" data-action="cols" data-delta="1" aria-label="增加一列">＋</button></div>
       </div>
       <div class="podium" style="width:140px">讲台</div>
-      <div class="layout-grid" style="grid-template-columns:repeat(${cols}, ${size}px)">
+      <div class="layout-scroll"><div class="layout-grid" style="grid-template-columns:repeat(${cols}, ${size}px)">
         ${draft
           .map((row, r) =>
             row.map((on, c) => `<button type="button" class="cell-toggle" data-action="toggle-desk" data-r="${r}" data-c="${c}" aria-pressed="${on}" aria-label="第 ${r + 1} 排第 ${c + 1} 列${on ? '：课桌' : '：空地'}"></button>`).join('')
           )
           .join('')}
-      </div>
+      </div></div>
       <p class="layout-count">共 ${desks} 张课桌 · ${cls.students.length} 名学生</p>
       <div class="btn-row" style="justify-content:flex-end">
         <button class="btn" data-action="reset-layout" ${changed ? '' : 'disabled'}>还原</button>
@@ -715,24 +723,35 @@
     async 'export-backup'() {
       const data = await call('exportData');
       if (!data) return;
-      download(new Blob([JSON.stringify(data)], { type: 'application/json' }), `易位备份-${dateStamp()}.json`);
+      if (!inWeChat) return download(new Blob([JSON.stringify(data)], { type: 'application/json' }), `易位备份-${dateStamp()}.json`);
+      // 微信内置浏览器不能下载：显示备份内容，复制后保存
+      const code = shareLink.packBackup(data);
+      const copied = await copyText(code);
+      await ui.modal({
+        title: '备份内容',
+        message: copied ? '已经复制到剪贴板，请粘贴到「文件传输助手」或备忘录里保存。' : '请复制下面的内容，粘贴到「文件传输助手」或备忘录里保存。',
+        textarea: { value: code, readonly: true },
+        buttons: [{ text: '关闭', value: true }],
+      });
     },
 
     async 'import-backup'() {
-      const file = await pickFile('.json,application/json');
+      const file = await pickFile('.json,application/json,text/plain');
       if (!file) return;
-      let backup = null;
-      try {
-        backup = JSON.parse(xlsx.decodeUtf8(file.bytes));
-      } catch (e) {
-        backup = null;
-      }
-      if (!backup || backup.app !== 'easeat' || !Array.isArray(backup.classes)) return ui.alert('这不是易位的备份文件');
-      if (!(await ui.confirm(`备份里有 ${backup.classes.length} 个班级，将作为新班级添加，不会覆盖现有的班级。`, '导入备份', '导入'))) return;
-      const res = await call('importData', { backup });
-      if (!res) return;
-      ui.toast(`已导入 ${res.imported.length} 个班级`);
-      showHome();
+      importBackupText(xlsx.decodeUtf8(file.bytes));
+    },
+
+    async 'paste-backup'() {
+      const r = await ui.modal({
+        title: '粘贴备份内容',
+        message: '粘贴在小程序或网页版里复制的备份内容。',
+        textarea: { placeholder: 'EASEAT1:...' },
+        buttons: [
+          { text: '取消', value: false },
+          { text: '导入', kind: 'primary', value: true },
+        ],
+      });
+      if (r.choice === true && r.value) importBackupText(r.value);
     },
 
     async rename() {
@@ -950,6 +969,21 @@
     },
   };
 
+  async function importBackupText(text) {
+    let backup = null;
+    try {
+      backup = shareLink.unpackBackup(text);
+    } catch (e) {
+      backup = null;
+    }
+    if (!backup || backup.app !== 'easeat' || !Array.isArray(backup.classes)) return ui.alert('这不是易位的备份，或者内容不完整');
+    if (!(await ui.confirm(`备份里有 ${backup.classes.length} 个班级，将作为新班级添加，不会覆盖现有的班级。`, '导入备份', '导入'))) return;
+    const res = await call('importData', { backup });
+    if (!res) return;
+    ui.toast(`已导入 ${res.imported.length} 个班级`);
+    showHome();
+  }
+
   const forms = {
     async 'add-student'(form) {
       const name = form.name.value.trim();
@@ -1008,6 +1042,15 @@
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && state.selected && !document.querySelector('.modal')) actions['clear-selection']();
+  });
+
+  // 另一个标签页修改了数据时，刷新当前页面
+  window.addEventListener('storage', (e) => {
+    if (!e.key || !e.key.startsWith(PREFIX) || e.key.startsWith(PREFIX + 'pref:')) return;
+    if (document.querySelector('.modal')) return;
+    const hash = location.hash || '#/';
+    if (/^#\/class\//.test(hash) && state.cls) showClass(state.cls.id, false);
+    else if (hash === '#/' || hash === '#') showHome();
   });
 
   window.addEventListener('hashchange', route);

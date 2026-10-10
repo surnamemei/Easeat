@@ -90,7 +90,7 @@
 
   function createLocalDatabase(storage) {
     storage = storage || {};
-    const tables = {};
+    let tables = {};
     let autoId = 0;
 
     function table(name) {
@@ -103,8 +103,21 @@
       return tables[name];
     }
 
-    function persist(name) {
-      if (storage.save) storage.save(name, Array.from(table(name).values()));
+    /**
+     * 修改一个集合并保存。保存失败时（例如存储空间已满）撤销内存中的修改，
+     * 让内存和已保存的数据保持一致。
+     */
+    function write(name, ids, change) {
+      const docs = table(name);
+      const before = ids.map((id) => [id, docs.has(id) ? clone(docs.get(id)) : undefined]);
+      const result = change(docs);
+      try {
+        if (storage.save) storage.save(name, Array.from(docs.values()));
+      } catch (e) {
+        before.forEach(([id, doc]) => (doc === undefined ? docs.delete(id) : docs.set(id, doc)));
+        throw e;
+      }
+      return result;
     }
 
     function notFound(id) {
@@ -113,11 +126,11 @@
       return e;
     }
 
+    // 每次操作都重新取集合（而不是在创建时记住），这样 reset() 之后会读到最新保存的数据
     function collection(name) {
-      const docs = table(name);
       const query = (q, skip, limit, order) => {
         const list = () => {
-          const hits = Array.from(docs.values()).filter((d) => matches(d, q));
+          const hits = Array.from(table(name).values()).filter((d) => matches(d, q));
           if (order) hits.sort((a, b) => (getPath(a, order[0]) < getPath(b, order[0]) ? -1 : 1) * (order[1] === 'desc' ? -1 : 1));
           return hits;
         };
@@ -129,8 +142,12 @@
           count: async () => ({ total: list().length }),
           update: async ({ data }) => {
             const hits = list();
-            hits.forEach((d) => applyUpdate(d, data));
-            if (hits.length) persist(name);
+            if (!hits.length) return { stats: { updated: 0 } };
+            write(
+              name,
+              hits.map((d) => d._id),
+              () => hits.forEach((d) => applyUpdate(d, data))
+            );
             return { stats: { updated: hits.length } };
           },
         };
@@ -140,40 +157,49 @@
           id = String(id);
           return {
             async get() {
-              if (!docs.has(id)) throw notFound(id);
-              return { data: clone(docs.get(id)) };
+              if (!table(name).has(id)) throw notFound(id);
+              return { data: clone(table(name).get(id)) };
             },
             async set({ data }) {
               if ('_id' in data) throw new Error('set() data must not contain _id');
-              docs.set(id, Object.assign({ _id: id }, clone(data)));
-              persist(name);
+              write(name, [id], (docs) => docs.set(id, Object.assign({ _id: id }, clone(data))));
               return { _id: id, stats: { updated: 1 } };
             },
             async update({ data }) {
-              if (!docs.has(id)) return { stats: { updated: 0 } };
-              applyUpdate(docs.get(id), data);
-              persist(name);
+              if (!table(name).has(id)) return { stats: { updated: 0 } };
+              write(name, [id], (docs) => applyUpdate(docs.get(id), data));
               return { stats: { updated: 1 } };
             },
             async remove() {
-              const existed = docs.delete(id);
-              if (existed) persist(name);
-              return { stats: { removed: existed ? 1 : 0 } };
+              if (!table(name).has(id)) return { stats: { removed: 0 } };
+              write(name, [id], (docs) => docs.delete(id));
+              return { stats: { removed: 1 } };
             },
           };
         },
         async add({ data }) {
           const id = data._id !== undefined ? String(data._id) : `auto${Date.now().toString(36)}${++autoId}`;
-          if (docs.has(id)) throw new Error(`duplicate key _id ${id}`);
-          docs.set(id, Object.assign(clone(data), { _id: id }));
-          persist(name);
+          if (table(name).has(id)) throw new Error(`duplicate key _id ${id}`);
+          write(name, [id], (docs) => docs.set(id, Object.assign(clone(data), { _id: id })));
           return { _id: id };
         },
         where: (q) => query(q, 0, 100, null),
       };
     }
 
-    return { collection, command, tables };
+    return {
+      collection,
+      command,
+      /** 内存中的数据（测试用） */
+      get tables() {
+        Object.keys(tables).forEach(table);
+        return tables;
+      },
+      /** 丢弃内存中的数据，下次操作时重新读取保存的数据（例如网页在另一个标签页里被修改过） */
+      reset() {
+        tables = {};
+      },
+    };
   }
 
   return { createLocalDatabase };

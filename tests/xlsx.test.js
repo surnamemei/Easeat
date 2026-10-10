@@ -107,3 +107,51 @@ test('old .xls files and broken files get a helpful message', () => {
 test('column names', () => {
   assert.deepEqual([0, 25, 26, 27, 701].map(xlsx.columnName), ['A', 'Z', 'AA', 'AB', 'ZZ']);
 });
+
+test('importing an Excel file exported by Easeat reads only the roster sheet', () => {
+  const students = [
+    { id: 1, name: '张三', height: 160 },
+    { id: 2, name: '李四', height: null },
+    { id: 3, name: '赵六', height: 150.5 },
+  ];
+  const bytes = xlsx.write([
+    chart.chartSheet({ title: '高一（3）班 座位表', subtitle: '排座时间：10月14日 周三 10:00', seats, arrangement }),
+    chart.rosterSheet(students, seats, arrangement),
+  ]);
+  assert.deepEqual(roster.parseRows(xlsx.readTable(bytes)), [
+    { name: '张三', height: 160 },
+    { name: '李四', height: null },
+    { name: '赵六', height: 150.5 },
+  ]);
+  // 只有座位表的文件（例如家长下载的）也不会把“讲台”“排座时间”当成学生
+  const chartOnly = xlsx.write([chart.chartSheet({ title: '座位表', subtitle: '排座时间：今天', seats: [[true, true, true]], arrangement: [['甲', '乙', '']] })]);
+  const names = roster.parseRows(xlsx.readTable(chartOnly)).map((s) => s.name);
+  assert.ok(!names.some((n) => /讲|排座时间/.test(n)), names.join());
+});
+
+test('plain text with spaces and CSV with a title line are split correctly', () => {
+  assert.deepEqual(xlsx.readTable(Buffer.from('张三 165\nTom Lee 170\n李四\n', 'utf8')), [['张三', '165'], ['Tom Lee', '170'], ['李四']]);
+  assert.deepEqual(roster.parseRows(xlsx.readTable(Buffer.from('高一3班名单\n张三,165\n李四,158\n', 'utf8'))), [
+    { name: '张三', height: 165 },
+    { name: '李四', height: 158 },
+  ]);
+});
+
+test('reads UTF-16 text saved by Excel as “Unicode 文本”', () => {
+  const text = '姓名\t身高\r\n张三\t165\r\n';
+  const le = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, 'utf16le')]);
+  assert.deepEqual(xlsx.readTable(le), [['姓名', '身高'], ['张三', '165']]);
+  const be = Buffer.from(le);
+  for (let i = 0; i < be.length; i += 2) [be[i], be[i + 1]] = [be[i + 1], be[i]];
+  assert.deepEqual(xlsx.readTable(be), [['姓名', '身高'], ['张三', '165']]);
+});
+
+test('malformed workbooks give a friendly error instead of crashing', () => {
+  const files = fflate.unzipSync(xlsx.write([{ name: 'S', rows: [{ cells: [{ v: 'x' }] }] }]));
+  files['xl/worksheets/sheet1.xml'] = fflate.strToU8(
+    fflate.strFromU8(files['xl/worksheets/sheet1.xml']).replace('<t xml:space="preserve">x</t>', '<t>&#x110000;&#xD800;张三</t>')
+  );
+  const rows = xlsx.readTable(fflate.zipSync(files));
+  assert.deepEqual(rows, [['张三']]);
+});
+

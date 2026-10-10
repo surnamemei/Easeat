@@ -140,7 +140,7 @@
    * options.db           云数据库或 local-db
    * options.randomBytes  (n) => 字节数组，用来生成班级 ID（云函数里用 crypto）
    * options.now          () => 时间戳
-   * options.autoOnOpen   true 时（本机模式、网页版），打开班级时补上本周的“每周自动重排”
+   * options.autoOnOpen   true 时（本机模式、网页版），老师打开班级（getClass 传 open: true）时补上本周的“每周自动重排”
    * options.internalError 意外错误时显示给用户的提示
    */
   function createService(options) {
@@ -231,7 +231,15 @@
     async function insertClass(openid, fields) {
       const id = await newClassId();
       await classes.add({
-        data: { _id: id, owner: openid, name: fields.name, createdAt: fields.createdAt || now(), settings: fields.settings || DEFAULT_SETTINGS },
+        data: {
+          _id: id,
+          owner: openid,
+          name: fields.name,
+          createdAt: fields.createdAt || now(),
+          settings: fields.settings || DEFAULT_SETTINGS,
+          // 导入的班级从导入时算起，下周一以后才自动重排
+          autoSince: now(),
+        },
       });
       const students = fields.students || [];
       await Promise.all([
@@ -305,15 +313,18 @@
       const settings = settingsOf(cls);
       let arrDoc = await getDoc(classArrangements, id);
 
-      // 本机模式没有定时任务：本周第一次打开时补上“每周自动重排”
+      // 本机模式没有定时任务：老师本周第一次打开班级时补上“每周自动重排”。
+      // 只在打开班级时检查（不在每次操作后的刷新里），并且从开启这个功能、导入备份以后算起。
       let autoArranged = false;
-      if (owned && options.autoOnOpen && settings.autoWeekly && arrDoc && arrDoc.arrangedAt && arrDoc.arrangedAt < weekStart(now())) {
+      const since = Math.max((arrDoc && arrDoc.arrangedAt) || 0, cls.autoSince || 0);
+      if (owned && options.autoOnOpen && event.open === true && settings.autoWeekly && arrDoc && arrDoc.arrangedAt && since < weekStart(now())) {
         try {
           await arrangeClass(id, cls, settings.mode, 'auto');
           arrDoc = await getDoc(classArrangements, id);
           autoArranged = true;
         } catch (e) {
-          if (!e.expose) throw e;
+          // 排不了（例如座位不够）或保存失败时保持原样，不影响打开班级
+          console.warn('自动重排跳过', id, e.message);
         }
       }
 
@@ -347,7 +358,11 @@
           if (!isMode(changes.mode)) fail('未知的排座方式');
           next.mode = data['settings.mode'] = changes.mode;
         }
-        if ('autoWeekly' in changes) next.autoWeekly = data['settings.autoWeekly'] = changes.autoWeekly === true;
+        if ('autoWeekly' in changes) {
+          next.autoWeekly = data['settings.autoWeekly'] = changes.autoWeekly === true;
+          // 从开启的这一刻算起，下周一以后才自动重排，不会立刻打乱当前的座位
+          if (next.autoWeekly && !settingsOf(cls).autoWeekly) data.autoSince = now();
+        }
         if ('separate' in changes) {
           next.separate = cleanPairs(changes.separate, (await loadStudents(id)).students);
           data['settings.separate'] = _.set(next.separate);

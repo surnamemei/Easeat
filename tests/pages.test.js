@@ -313,6 +313,10 @@ for (const mode of ['local', 'cloud']) {
     assert.match(backupFile.fileName, /^易位备份-\d{4}-\d{2}-\d{2}\.json$/);
     const backup = JSON.parse(backupFile.bytes.toString('utf8'));
     assert.equal(backup.classes[0].students.length, 8);
+    // 复制备份内容：压缩过的文字（在创建下一台“设备”之前复制，模拟环境的 wx 是全局的）
+    backupPage.copyBackup();
+    const packed = app.log.clipboard;
+    assert.ok(packed.startsWith('EASEAT1:'));
 
     // 另一台设备（全新的本地数据）
     const other = createMiniProgram({ platform, mode });
@@ -336,6 +340,18 @@ for (const mode of ['local', 'cloud']) {
     restorePage.onPaste({ detail: { value: '{"hello": 1}' } });
     restorePage.restorePasted();
     assert.match(other.log.modals.pop().content, /不是易位的备份文件/);
+
+    // 在第三台设备上粘贴恢复
+    const third = createMiniProgram({ platform, mode });
+    t.after(() => third.restore());
+    const pastePage = third.open('pages/backup/backup');
+    await third.settle();
+    pastePage.togglePaste();
+    pastePage.onPaste({ detail: { value: packed } });
+    third.answerModal({ confirm: true });
+    pastePage.restorePasted();
+    await third.settle();
+    assert.equal(pastePage.data.summary, '1 个班级 · 8 名学生');
   });
 }
 }
@@ -370,9 +386,22 @@ for (const platform of ['wx', 'qq']) {
     await app.settle();
     const before = page.data.arrangement;
 
-    // 把上次排座时间改到两周前，模拟过了一段时间再打开
+    const TWO_WEEKS = 14 * 24 * 3600 * 1000;
+
+    // 刚开启这个功能时不会马上重排：即使上次排座是两周前，也要等到下周一以后
+    const justEnabled = JSON.parse(JSON.stringify(app.storage));
+    justEnabled['easeat:classArrangement'].forEach((doc) => (doc.arrangedAt -= TWO_WEEKS));
+    const soon = createMiniProgram({ platform, mode: 'local', storage: justEnabled });
+    t.after(() => soon.restore());
+    const notYet = soon.open('pages/inclass/class', { classId });
+    await soon.settle();
+    assert.deepEqual(notYet.data.arrangement, before);
+    assert.notEqual(notYet.data.arrangedBy, 'auto');
+
+    // 两周前开启、两周前排座：这周第一次打开时自动重排
     const storage = JSON.parse(JSON.stringify(app.storage));
-    storage['easeat:classArrangement'].forEach((doc) => (doc.arrangedAt -= 14 * 24 * 3600 * 1000));
+    storage['easeat:classArrangement'].forEach((doc) => (doc.arrangedAt -= TWO_WEEKS));
+    storage['easeat:class'].forEach((doc) => (doc.autoSince -= TWO_WEEKS));
     const later = createMiniProgram({ platform, mode: 'local', storage });
     t.after(() => later.restore());
     const reopened = later.open('pages/inclass/class', { classId });

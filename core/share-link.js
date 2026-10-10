@@ -1,6 +1,8 @@
 /**
  * 只读的座位表链接：把座位表压缩后放进网址（#view=...），不需要服务器。
  * 老师在小程序或网页里复制链接发给家长，家长在浏览器里打开网页版即可查看。
+ *
+ * 同样的压缩方式也用于“复制备份内容”（packBackup / unpackBackup），复制的文字比原始 JSON 短得多。
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./fflate'));
@@ -9,6 +11,17 @@
   const SITE_URL = 'https://surnamemei.github.io/Easeat/';
   const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
   const MAX_NAME = 20;
+  const MAX_CODE = 20000;
+  const MAX_VIEW_BYTES = 200 * 1024;
+  const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
+  const BACKUP_PREFIX = 'EASEAT1:';
+
+  /** 解压，超过 limit 字节时报错（防止特意构造的链接让页面卡死） */
+  function inflateLimited(bytes, limit) {
+    const out = fflate.inflateSync(bytes, { out: new Uint8Array(limit + 1) });
+    if (out.length > limit) throw new Error('too large');
+    return out;
+  }
 
   function toBase64Url(bytes) {
     let out = '';
@@ -55,7 +68,8 @@
   function decode(code) {
     let payload;
     try {
-      payload = JSON.parse(fflate.strFromU8(fflate.inflateSync(fromBase64Url(code))));
+      if (String(code).length > MAX_CODE) throw new Error('too long');
+      payload = JSON.parse(fflate.strFromU8(inflateLimited(fromBase64Url(code), MAX_VIEW_BYTES)));
     } catch (e) {
       throw new Error('链接不完整或已损坏，请让老师重新复制链接');
     }
@@ -77,5 +91,18 @@
     return `${site || SITE_URL}#view=${encode(data)}`;
   }
 
-  return { SITE_URL, encode, decode, viewUrl, toBase64Url, fromBase64Url };
+  /** 备份 → 一段可以复制粘贴的文字 */
+  function packBackup(backup) {
+    return BACKUP_PREFIX + toBase64Url(fflate.deflateSync(fflate.strToU8(JSON.stringify(backup)), { level: 9 }));
+  }
+
+  /** 粘贴的备份文字（压缩过的，或者原始 JSON）→ 备份对象；格式不对时抛出错误 */
+  function unpackBackup(text) {
+    const t = String(text || '').trim();
+    if (!t.startsWith(BACKUP_PREFIX)) return JSON.parse(t);
+    const code = t.slice(BACKUP_PREFIX.length).replace(/\s+/g, '');
+    return JSON.parse(fflate.strFromU8(inflateLimited(fromBase64Url(code), MAX_BACKUP_BYTES)));
+  }
+
+  return { SITE_URL, encode, decode, viewUrl, packBackup, unpackBackup, toBase64Url, fromBase64Url };
 });

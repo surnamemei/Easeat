@@ -37,7 +37,11 @@ function canShareFile() {
 function shareFile(bytes, fileName, previewType) {
   const safeName = fileName.replace(/[\\/:*?"<>|]/g, '_');
   const filePath = `${qq.env.USER_DATA_PATH}/${safeName}`;
-  fs().writeFileSync(filePath, toArrayBuffer(bytes));
+  try {
+    fs().writeFileSync(filePath, toArrayBuffer(bytes));
+  } catch (err) {
+    return Promise.reject(new Error(`保存文件失败，手机存储空间可能不足（${(err && err.errMsg) || err}）`));
+  }
   return new Promise((resolve, reject) => {
     const preview = () => {
       if (!previewType || !qq.openDocument) return reject(new Error('当前版本不支持导出文件，请更新到最新版本'));
@@ -56,8 +60,11 @@ function shareFile(bytes, fileName, previewType) {
   });
 }
 
-/** 从聊天记录里选择一个文件，返回 { name, bytes }；用户取消时返回 null */
-function chooseFile() {
+/**
+ * 从聊天记录里选择一个文件，返回 { name, bytes }；用户取消时返回 null。
+ * fallbackHint：选择文件失败时提示的其他办法
+ */
+function chooseFile(fallbackHint) {
   return new Promise((resolve, reject) => {
     qq.chooseMessageFile({
       count: 1,
@@ -72,7 +79,7 @@ function chooseFile() {
       },
       fail(err) {
         if (cancelled(err)) resolve(null);
-        else reject(new Error(`无法选择文件（${err.errMsg}）。也可以用「粘贴名单」添加。`));
+        else reject(new Error(`无法选择文件（${err.errMsg}）。${fallbackHint || ''}`));
       },
     });
   });

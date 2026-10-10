@@ -79,7 +79,8 @@ Page({
   },
 
   async load(first) {
-    const detail = await api.run('getClass', { classId: this.data.classId }, { loading: first ? '加载中' : false });
+    // open：老师打开班级（不是下拉刷新），本机模式会在这时补上本周的自动重排
+    const detail = await api.run('getClass', { classId: this.data.classId, open: first }, { loading: first ? '加载中' : false });
     if (!detail) return this.setData({ loaded: true, failed: !this.data.name });
     qq.setNavigationBarTitle({ title: detail.name });
     const changes = Object.assign({ loaded: true, failed: false }, detail);
@@ -244,12 +245,21 @@ Page({
   },
 
   toggleExport() {
-    if (!this.data.showExport && (!this.data.grid || !this.data.grid.seated)) return toast('还没有座位表');
+    if (!this.data.showExport && !this.chartReady()) return;
     this.setData({ showExport: !this.data.showExport });
+  },
+
+  /** 有可以导出的座位表吗？（排过座，并且和现在的教室布局对得上） */
+  chartReady() {
+    const { grid, arrangement } = this.data;
+    if (grid && grid.match && grid.seated) return true;
+    toast(grid && arrangement.length && !grid.match ? '教室布局修改过，请先重新排座' : '还没有座位表');
+    return false;
   },
 
   /** 导出 Excel 文件：座位表（创建者还会多一张学生名单），转发到聊天或保存到电脑 */
   exportExcel() {
+    if (!this.chartReady()) return;
     const { name, seats, arrangement, flip, owned, students, arrangedAt } = this.data;
     let bytes;
     try {
@@ -266,6 +276,7 @@ Page({
 
   /** 复制只读的网页链接：家长在浏览器里打开即可查看座位表 */
   copyViewLink() {
+    if (!this.chartReady()) return;
     const { name, seats, arrangement, arrangedAt } = this.data;
     const url = shareLink.viewUrl({ name, seats, arrangement, arrangedAt });
     qq.setClipboardData({
@@ -280,6 +291,7 @@ Page({
   },
 
   copyTable() {
+    if (!this.chartReady()) return;
     qq.setClipboardData({
       data: chart.toTSV(`${this.data.name} 座位表`, this.data.arrangement, this.data.flip),
       success: () =>
@@ -292,6 +304,7 @@ Page({
   },
 
   saveImage() {
+    if (!this.chartReady()) return;
     const unsupported = '当前版本不支持生成图片，请更新到最新版本，或使用「复制到 Excel」。';
     const size = chart.measure(this.data.seats);
     qq.showLoading({ title: '正在生成', mask: true });
@@ -381,7 +394,7 @@ Page({
   async importExcel() {
     let rows;
     try {
-      const file = await files.chooseFile();
+      const file = await files.chooseFile('也可以用「粘贴名单」添加。');
       if (!file) return;
       rows = xlsx.readTable(file.bytes);
     } catch (err) {

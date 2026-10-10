@@ -44,3 +44,22 @@ test('broken or tampered links are rejected with a friendly message', () => {
   const code = link.encode(data);
   assert.throws(() => link.decode(code.slice(0, code.length - 6)), /链接不完整/);
 });
+
+test('backups can be packed into a short code and survive line breaks from chat apps', () => {
+  const backup = { app: 'easeat', version: 1, classes: [{ name: '高一（3）班', students: Array.from({ length: 40 }, (_, i) => ({ id: i + 1, name: `学生${i + 1}`, height: 150 + i })) }] };
+  const code = link.packBackup(backup);
+  assert.ok(code.startsWith('EASEAT1:'));
+  assert.ok(code.length < JSON.stringify(backup).length / 2, `packed ${code.length} vs raw ${JSON.stringify(backup).length}`);
+  const wrapped = code.replace(/(.{60})/g, '$1\n  ');
+  assert.deepEqual(link.unpackBackup(`  ${wrapped}  `), backup);
+  assert.deepEqual(link.unpackBackup(JSON.stringify(backup)), backup);
+  assert.throws(() => link.unpackBackup('EASEAT1:!!!'));
+});
+
+test('links that would expand into something huge are rejected', () => {
+  const fflate = require('../core/fflate');
+  const bomb = link.toBase64Url(fflate.deflateSync(new Uint8Array(5 * 1024 * 1024).fill(32)));
+  assert.throws(() => link.decode(bomb), /链接不完整/);
+  assert.throws(() => link.decode('A'.repeat(30000)), /链接不完整/);
+});
+

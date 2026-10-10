@@ -59,7 +59,8 @@ Page({
   copyBackup() {
     if (!this.backup || !this.backup.classes.length) return toast('还没有可以备份的班级');
     wx.setClipboardData({
-      data: JSON.stringify(this.backup),
+      // 压缩过的备份文字，比原始 JSON 短得多，网页版和小程序都能恢复
+      data: shareLink.packBackup(this.backup),
       success: () =>
         wx.showModal({
           title: '已复制',
@@ -72,7 +73,7 @@ Page({
   async restoreFile() {
     let text;
     try {
-      const file = await files.chooseFile();
+      const file = await files.chooseFile('也可以用「粘贴备份内容」恢复。');
       if (!file) return;
       text = xlsx.decodeUtf8(file.bytes);
     } catch (err) {
@@ -97,7 +98,7 @@ Page({
   restore(text) {
     let backup;
     try {
-      backup = JSON.parse(text);
+      backup = shareLink.unpackBackup(text);
     } catch (e) {
       backup = null;
     }

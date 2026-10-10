@@ -191,7 +191,7 @@
       if (k === 'quot') return '"';
       if (k === 'apos') return "'";
       const code = k[1] === 'x' ? parseInt(k.slice(2), 16) : parseInt(k.slice(1), 10);
-      return isFinite(code) ? String.fromCodePoint(code) : m;
+      return isFinite(code) && code >= 0 && code <= 0x10ffff && (code < 0xd800 || code > 0xdfff) ? String.fromCodePoint(code) : '';
     });
   }
 
@@ -325,10 +325,33 @@
     return out;
   }
 
-  /** 解析 CSV / TSV 文字（支持引号、引号里的逗号和换行） */
+  const DELIMITERS = ['\t', ',', '，', ';', '；'];
+
+  /** 没有分隔符的文字（例如“张三 165”）：把最后一个数字当作身高，姓名里可以有空格 */
+  function splitBySpace(text) {
+    return text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const m = line.match(/^(.*\S)\s+(\d+(\.\d+)?\s*(cm|厘米|公分)?)$/i);
+        return m ? [m[1], m[2]] : [line];
+      });
+  }
+
+  /** 解析 CSV / TSV 文字（支持引号、引号里的逗号和换行）。分隔符按出现在最多行里的那个来定 */
   function parseDelimited(text) {
-    const firstLine = text.split(/\r?\n/, 1)[0] || '';
-    const delimiter = firstLine.includes('\t') ? '\t' : firstLine.includes(',') ? ',' : firstLine.includes('，') ? '，' : firstLine.includes(';') ? ';' : '\t';
+    const lines = text.split(/\r?\n/).filter((l) => l.trim());
+    let delimiter = null;
+    let best = 0;
+    DELIMITERS.forEach((d) => {
+      const n = lines.filter((l) => l.includes(d)).length;
+      if (n > best) {
+        best = n;
+        delimiter = d;
+      }
+    });
+    if (!delimiter) return splitBySpace(text);
     const rows = [];
     let row = [];
     let field = '';
@@ -360,6 +383,25 @@
     return rows;
   }
 
+  /** 带 BOM 的 UTF-16 文字（Excel 的“Unicode 文本”）；没有 BOM 时返回 null */
+  function decodeUtf16(bytes) {
+    const le = bytes[0] === 0xff && bytes[1] === 0xfe;
+    const be = bytes[0] === 0xfe && bytes[1] === 0xff;
+    if (!le && !be) return null;
+    let out = '';
+    for (let i = 2; i + 1 < bytes.length; i += 2) out += String.fromCharCode(le ? bytes[i] | (bytes[i + 1] << 8) : (bytes[i] << 8) | bytes[i + 1]);
+    return out;
+  }
+
+  /** 选择要导入的工作表：易位导出的文件只读“学生名单”，其余文件读取所有工作表（跳过“座位表”） */
+  function rosterRows(sheets) {
+    const roster = sheets.filter((s) => s.name === '学生名单');
+    const chosen = roster.length ? roster : sheets.filter((s) => s.name !== '座位表');
+    const rows = [];
+    (chosen.length ? chosen : sheets).forEach((sheet) => rows.push(...sheet.rows));
+    return rows;
+  }
+
   /**
    * 读取老师选择的名单文件，返回所有行。
    * 根据文件内容判断格式：.xlsx（zip）、旧版 .xls（不支持，提示另存）、CSV / 纯文本。
@@ -367,25 +409,28 @@
   function readTable(input) {
     const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
     if (bytes.length > 5 * 1024 * 1024) throw new XlsxError('文件太大了，请只保留姓名和身高两列');
-    if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
-      const rows = [];
-      readWorkbook(bytes).forEach((sheet) => rows.push(...sheet.rows));
-      return rows;
-    }
     if (bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0) {
       throw new XlsxError('暂不支持旧版 .xls 文件。请在 Excel 或 WPS 中“另存为” .xlsx，或复制名单后使用“粘贴名单”。');
     }
-    let text = decodeUtf8(bytes);
-    if (text === null && typeof TextDecoder !== 'undefined') {
-      // Excel 在中文 Windows 上保存的 CSV 通常是 GBK 编码
-      try {
-        text = new TextDecoder('gbk').decode(bytes);
-      } catch (e) {
-        text = null;
+    try {
+      if (bytes[0] === 0x50 && bytes[1] === 0x4b) return rosterRows(readWorkbook(bytes));
+      let text = decodeUtf16(bytes);
+      if (text === null) text = decodeUtf8(bytes);
+      if (text === null && typeof TextDecoder !== 'undefined') {
+        // Excel 在中文 Windows 上保存的 CSV 通常是 GBK 编码
+        try {
+          text = new TextDecoder('gbk').decode(bytes);
+          if (/[\ufffd\u0000]/.test(text)) text = null;
+        } catch (e) {
+          text = null;
+        }
       }
+      if (text === null) throw new XlsxError('无法识别这个文件的编码。请另存为 .xlsx，或复制名单后使用“粘贴名单”。');
+      return parseDelimited(text);
+    } catch (e) {
+      if (e instanceof XlsxError || e.expose) throw e;
+      throw new XlsxError('无法读取这个文件，请确认是 Excel 表格（.xlsx）或 CSV 文件');
     }
-    if (text === null) throw new XlsxError('无法识别这个文件的编码。请另存为 .xlsx，或复制名单后使用“粘贴名单”。');
-    return parseDelimited(text);
   }
 
   return { write, readWorkbook, readTable, parseDelimited, decodeUtf8, columnName, XlsxError };
