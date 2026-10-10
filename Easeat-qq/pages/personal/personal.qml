@@ -4,6 +4,7 @@
     <view>
       <view class="profile-name">易位 eaSEAT</view>
       <view class="muted">老师的排座位小助手 · v2.0</view>
+      <view class="muted">数据保存在：{{local ? '这台设备' : '云端'}}</view>
     </view>
   </view>
 
@@ -16,6 +17,14 @@
     <navigator url="/pages/notice/notice" class="list-item" hover-class="list-hover">
       <image class="list-icon" src="/images/icon_bell.png" />
       <view class="list-label">更新公告</view>
+      <view class="list-arrow"></view>
+    </navigator>
+  </view>
+
+  <view class="list">
+    <navigator url="/pages/backup/backup" class="list-item" hover-class="list-hover">
+      <image class="list-icon" src="/images/icon_backup.png" />
+      <view class="list-label">备份与恢复</view>
       <view class="list-arrow"></view>
     </navigator>
   </view>

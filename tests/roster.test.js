@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseText, parseRows, parseHeight, normalize } = require('../Easeat-wx/cloudfunctions/easeat/roster');
+const { parseText, parseRows, parseHeight, normalize } = require('../core/roster');
 
 test('pasted text: tabs from Excel, commas, spaces and header rows', () => {
   const text = ['姓名\t身高', '张三\t165', '李四,158cm', '王 五 1.72', 'Tom Lee 170', '', '赵六'].join('\n');

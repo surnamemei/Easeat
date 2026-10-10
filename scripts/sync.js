@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * 以微信版（Easeat-wx）为准，生成 QQ 版（Easeat-qq）的代码，并把排座算法复制给网页演示（docs/js）。
+ * 同步共用代码：
+ * 1. 把 core/ 里的共用模块复制到微信版（utils/core、云函数 easeat/core）和网页版（docs/js/core）；
+ * 2. 以微信版（Easeat-wx）为准，生成 QQ 版（Easeat-qq）。
  *
  *   node scripts/sync.js          同步
  *   node scripts/sync.js --check  只检查是否已同步（测试里会运行）
@@ -13,9 +15,18 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
+const CORE = path.join(ROOT, 'core');
 const WX = path.join(ROOT, 'Easeat-wx');
 const QQ = path.join(ROOT, 'Easeat-qq');
-const DOCS_JS = path.join(ROOT, 'docs', 'js');
+const DOCS_CORE = path.join(ROOT, 'docs', 'js', 'core');
+
+// core/ 里的模块复制到哪里（云函数只需要业务逻辑）
+const CORE_TARGETS = [
+  { dir: path.join(WX, 'utils', 'core'), files: null },
+  { dir: path.join(WX, 'cloudfunctions', 'easeat', 'core'), files: ['arrange.js', 'roster.js', 'service.js'] },
+  { dir: DOCS_CORE, files: null },
+];
+const BANNER = '// 此文件由 scripts/sync.js 从仓库根目录的 core/ 复制而来，请修改 core/ 中的原文件。\n';
 
 const QQ_SERVER_SDK = '^1.2.2-beta.2';
 // QQ 版里由本脚本生成的内容；这些位置里多出来的旧文件会被删除
@@ -24,11 +35,6 @@ const GENERATED = ['app.js', 'app.json', 'app.qss', 'pages', 'components', 'util
 const QQ_OWNED = ['utils/platform.js'];
 // 微信版里不需要复制的文件
 const SKIP = [/(^|\/)node_modules\//, /package-lock\.json$/, /^project\..*json$/, /^sitemap\.json$/, /^\.vscode\//, /^\.prettierrc\.js$/, /^utils\/platform\.js$/];
-const DOCS = {
-  'arrange.js': 'cloudfunctions/easeat/arrange.js',
-  'roster.js': 'cloudfunctions/easeat/roster.js',
-  'seat-chart.js': 'utils/seat-chart.js',
-};
 
 function walk(dir, base = dir) {
   if (!fs.existsSync(dir)) return [];
@@ -47,16 +53,37 @@ function transformJs(text, file) {
   return out;
 }
 
-/** 生成 QQ 版和网页演示的全部文件：Map<绝对路径, Buffer> */
-function buildOutputs() {
+/** core/ 复制出去的文件：Map<绝对路径, Buffer> */
+function coreOutputs() {
   const out = new Map();
-  const qqApp = JSON.parse(fs.readFileSync(path.join(QQ, 'app.json'), 'utf8'));
+  const modules = fs.readdirSync(CORE).filter((f) => f.endsWith('.js'));
+  for (const target of CORE_TARGETS) {
+    for (const name of target.files || modules) {
+      out.set(path.join(target.dir, name), Buffer.concat([Buffer.from(BANNER), fs.readFileSync(path.join(CORE, name))]));
+    }
+  }
+  return out;
+}
 
-  for (const file of walk(WX)) {
+/** 生成的全部文件（core 的副本和 QQ 版）：Map<绝对路径, Buffer> */
+function buildOutputs() {
+  const out = coreOutputs();
+  const qqApp = JSON.parse(fs.readFileSync(path.join(QQ, 'app.json'), 'utf8'));
+  // QQ 版从微信版生成，微信版里的 core 副本以这次生成的内容为准
+  const inCoreCopy = (abs) => CORE_TARGETS.some((t) => abs.startsWith(t.dir + path.sep));
+  const wxFiles = new Map(
+    walk(WX)
+      .map((file) => [file, path.join(WX, file)])
+      .filter(([, abs]) => !inCoreCopy(abs) || out.has(abs))
+  );
+  for (const key of out.keys()) {
+    if (key.startsWith(WX + path.sep)) wxFiles.set(path.relative(WX, key).split(path.sep).join('/'), key);
+  }
+
+  for (const [file, src] of wxFiles) {
     if (SKIP.some((re) => re.test(file))) continue;
-    const src = path.join(WX, file);
     let target = file;
-    let content = fs.readFileSync(src);
+    let content = out.has(src) ? out.get(src) : fs.readFileSync(src);
 
     if (file.endsWith('.wxml')) {
       target = file.replace(/\.wxml$/, '.qml');
@@ -81,19 +108,19 @@ function buildOutputs() {
     out.set(path.join(QQ, target), Buffer.from(content));
   }
 
-  for (const [name, from] of Object.entries(DOCS)) {
-    out.set(path.join(DOCS_JS, name), fs.readFileSync(path.join(WX, from)));
-  }
   return out;
 }
 
-/** QQ 版中应该删除的旧文件（不再由微信版生成，也不是 QQ 版自己的文件） */
+/** 应该删除的旧文件：QQ 版里不再由微信版生成的文件，以及各个 core 副本目录里多出来的文件 */
 function staleFiles(outputs) {
   const stale = [];
   for (const file of walk(QQ)) {
     const top = file.split('/')[0];
     if (!GENERATED.includes(top) || QQ_OWNED.includes(file) || /(^|\/)node_modules\//.test(file)) continue;
     if (!outputs.has(path.join(QQ, file))) stale.push(path.join(QQ, file));
+  }
+  for (const { dir } of CORE_TARGETS) {
+    for (const file of walk(dir)) if (!outputs.has(path.join(dir, file))) stale.push(path.join(dir, file));
   }
   return stale;
 }
@@ -126,6 +153,7 @@ function main() {
     if (dir !== QQ && !fs.readdirSync(dir).length) fs.rmdirSync(dir);
   };
   GENERATED.forEach((top) => prune(path.join(QQ, top)));
+  prune(path.join(ROOT, 'docs', 'js'));
   console.log(`已同步：更新 ${changed.length} 个文件，删除 ${stale.length} 个旧文件。`);
 }
 

@@ -4,9 +4,9 @@
   "private": true,
   "description": "易位 eaSEAT：帮老师自动排座位的微信 / QQ 小程序",
   "scripts": {
-    "test": "node --test tests/",
+    "test": "node scripts/test.js",
     "sync": "node scripts/sync.js",
-    "check": "node scripts/sync.js --check && node --test tests/"
+    "check": "node scripts/sync.js --check && node scripts/test.js"
   },
   "engines": {
     "node": ">=18"

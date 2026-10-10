@@ -1,3 +1,4 @@
+// 此文件由 scripts/sync.js 从仓库根目录的 core/ 复制而来，请修改 core/ 中的原文件。
 /**
  * 座位表的显示、导出和绘图。小程序和 GitHub Pages 上的网页演示共用这个文件。
  *
@@ -238,5 +239,98 @@
     return { width, height };
   }
 
-  return { buildGrid, unseatedNames, matchesLayout, toTSV, measure, draw };
+  // ------------------------------------------------------------ Excel（配合 xlsx.js 的 write 使用）
+
+  /** 座位在学生视角下的位置描述，例如“第 2 排第 5 列”（过道不计入列数） */
+  function seatLabel(seats, r, c) {
+    let col = 0;
+    for (let k = 0; k <= c; k++) if (!isAisle(seats, k)) col++;
+    return `第 ${r + 1} 排第 ${col} 列`;
+  }
+
+  /** 座位表工作表：标题、讲台、每张课桌一个单元格，横向打印在一页纸上 */
+  function chartSheet(data) {
+    const { seats, flip } = data;
+    const arrangement = matchesLayout(data.arrangement, seats) ? data.arrangement : [];
+    const cols = Math.max(columnCount(seats), 3);
+    const colOrder = order(Array.from({ length: cols }, (_, c) => c), flip);
+    const last = colOrder.length - 1;
+    const span = (row) => `A${row}:${columnLetter(last)}${row}`;
+    const rows = [];
+    const merges = [];
+    const fullRow = (v, s, height) => ({ height, cells: [{ v, s }].concat(Array.from({ length: last }, () => ({ v: '', s }))) });
+    const podiumRow = () => {
+      // 讲台放在中间三列
+      const mid = Math.floor(last / 2);
+      const cells = colOrder.map((_, i) => (i >= mid - 1 && i <= mid + 1 ? { v: i === mid - 1 ? '讲 台' : '', s: 'podium' } : null));
+      merges.push(`${columnLetter(mid - 1)}${rows.length + 1}:${columnLetter(mid + 1)}${rows.length + 1}`);
+      rows.push({ height: 24, cells });
+    };
+
+    rows.push(fullRow(data.title || '座位表', 'title', 30));
+    merges.push(span(1));
+    rows.push(fullRow(data.subtitle || '', 'subtitle', 18));
+    merges.push(span(2));
+    rows.push({ height: 8, cells: [] });
+    if (!flip) podiumRow();
+    order(Array.from({ length: seats.length }, (_, r) => r), flip).forEach((r) => {
+      rows.push({
+        height: 36,
+        cells: colOrder.map((c) => {
+          if (!seats[r][c]) return null;
+          const name = (arrangement[r] && typeof arrangement[r][c] === 'string' && arrangement[r][c]) || '';
+          return { v: name, s: name ? 'desk' : 'empty' };
+        }),
+      });
+    });
+    if (flip) {
+      rows.push({ height: 8, cells: [] });
+      podiumRow();
+    }
+    return {
+      name: '座位表',
+      rows,
+      cols: colOrder.map((c) => (c < columnCount(seats) && isAisle(seats, c) ? 3 : 11)),
+      merges,
+      landscape: true,
+      fitToPage: true,
+    };
+  }
+
+  /** 学生名单工作表：姓名、身高和当前座位 */
+  function rosterSheet(students, seats, arrangement) {
+    const where = new Map();
+    if (matchesLayout(arrangement, seats)) {
+      arrangement.forEach((row, r) =>
+        row.forEach((name, c) => {
+          if (typeof name !== 'string' || !name) return;
+          if (!where.has(name)) where.set(name, []);
+          where.get(name).push(seatLabel(seats, r, c));
+        })
+      );
+    }
+    const header = ['序号', '姓名', '身高（厘米）', '座位'].map((v) => ({ v, s: 'header' }));
+    const rows = [{ height: 22, cells: header }];
+    students.forEach((s, i) => {
+      const spots = where.get(s.name);
+      rows.push({
+        height: 20,
+        cells: [
+          { v: i + 1, s: 'center' },
+          { v: s.name, s: 'cell' },
+          { v: typeof s.height === 'number' ? s.height : '', s: 'center' },
+          { v: spots && spots.length ? spots.shift() : '未安排', s: 'cell' },
+        ],
+      });
+    });
+    return { name: '学生名单', rows, cols: [7, 14, 13, 18] };
+  }
+
+  function columnLetter(i) {
+    let name = '';
+    for (let n = i + 1; n > 0; n = Math.floor((n - 1) / 26)) name = String.fromCharCode(65 + ((n - 1) % 26)) + name;
+    return name;
+  }
+
+  return { buildGrid, unseatedNames, matchesLayout, toTSV, measure, draw, chartSheet, rosterSheet, seatLabel };
 });

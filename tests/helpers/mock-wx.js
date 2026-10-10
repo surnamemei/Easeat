@@ -1,6 +1,7 @@
 /**
  * 在 Node 里模拟小程序运行环境：Page()、setData() 和测试用到的 wx/qq 接口。
- * wx.cloud.callFunction 会直接调用真实的云函数代码（数据存在内存版数据库里），
+ * 云端模式：wx.cloud.callFunction 直接调用真实的云函数代码（数据存在内存版数据库里）；
+ * 本机模式：页面通过 utils/api.js 在“手机”上运行同一份业务逻辑，数据存在模拟的本地缓存里。
  * 所以测试可以像用户一样操作页面，从页面一直走到数据库。
  */
 const path = require('path');
@@ -19,18 +20,37 @@ function setPath(obj, keyPath, value) {
   o[keys[keys.length - 1]] = value;
 }
 
+/**
+ * options.platform：'wx' 或 'qq'
+ * options.mode：'cloud' 或 'local'（默认，与小程序的默认设置一致）
+ * options.storage：本地缓存的初始内容（用来模拟“过了一段时间再打开”）
+ */
 function createMiniProgram(options = {}) {
   const platform = options.platform || 'wx';
+  const mode = options.mode || 'local';
   const root = path.join(__dirname, `../../Easeat-${platform}`);
   const cloud = installMockCloud();
   for (const key of Object.keys(require.cache)) if (key.startsWith(root)) delete require.cache[key];
+  require(path.join(root, 'utils/platform')).mode = mode;
   const functions = { easeat: require(path.join(root, 'cloudfunctions/easeat')) };
 
   let user = 'teacher';
   let pending = 0;
-  const storage = {};
+  const storage = clone(options.storage || {});
   const modalAnswers = [];
-  const log = { calls: [], toasts: [], modals: [], navigations: [], titles: [], clipboard: null, actionSheets: [] };
+  const files = new Map();
+  const picked = [];
+  const log = { calls: [], toasts: [], modals: [], navigations: [], titles: [], clipboard: null, actionSheets: [], sharedFiles: [], documents: [] };
+  const fileSystem = {
+    writeFileSync(filePath, data) {
+      files.set(filePath, Buffer.from(data));
+    },
+    readFileSync(filePath) {
+      if (!files.has(filePath)) throw new Error(`readFileSync:fail no such file ${filePath}`);
+      const b = files.get(filePath);
+      return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
+    },
+  };
 
   const api = {
     cloud: {
@@ -81,7 +101,25 @@ function createMiniProgram(options = {}) {
       if (o.success) o.success();
     },
     getWindowInfo: () => ({ pixelRatio: 2 }),
-    getSystemInfoSync: () => ({ pixelRatio: 2 }),
+    getSystemInfoSync: () => ({ pixelRatio: 2, platform: 'ios' }),
+    getDeviceInfo: () => ({ platform: 'ios' }),
+    env: { USER_DATA_PATH: 'wxfile://usr' },
+    getFileSystemManager: () => fileSystem,
+    chooseMessageFile(o) {
+      if (!picked.length) return o.fail({ errMsg: 'chooseMessageFile:fail cancel' });
+      const { name, bytes } = picked.shift();
+      const filePath = `wxfile://tmp/${name}`;
+      files.set(filePath, Buffer.from(bytes));
+      o.success({ tempFiles: [{ path: filePath, name, size: bytes.length }] });
+    },
+    shareFileMessage(o) {
+      log.sharedFiles.push({ fileName: o.fileName, filePath: o.filePath, bytes: files.get(o.filePath) });
+      o.success();
+    },
+    openDocument(o) {
+      log.documents.push(o);
+      o.success();
+    },
   };
 
   global.wx = api;
@@ -126,6 +164,7 @@ function createMiniProgram(options = {}) {
 
   return {
     platform,
+    mode,
     root,
     cloud,
     log,
@@ -138,6 +177,10 @@ function createMiniProgram(options = {}) {
     /** 预设下一次 showModal 的回答，例如 { confirm: true } */
     answerModal(answer) {
       modalAnswers.push(answer);
+    },
+    /** 预设下一次 chooseMessageFile 选中的文件 */
+    pickFile(name, bytes) {
+      picked.push({ name, bytes });
     },
     restore() {
       cloud.restore();

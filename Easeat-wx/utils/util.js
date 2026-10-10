@@ -10,6 +10,14 @@ function formatTime(ts) {
   return `${year}${d.getMonth() + 1}月${d.getDate()}日 周${WEEKDAYS[d.getDay()]} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/** 时间戳 → “10月12日”，不是今年时带上年份 */
+function formatDate(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  const year = d.getFullYear() === new Date().getFullYear() ? '' : d.getFullYear() + '年';
+  return `${year}${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
 function readStorage(key, fallback) {
   try {
     const v = wx.getStorageSync(key);
@@ -27,4 +35,4 @@ function writeStorage(key, value) {
   }
 }
 
-module.exports = { formatTime, readStorage, writeStorage };
+module.exports = { formatTime, formatDate, readStorage, writeStorage };

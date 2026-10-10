@@ -6,7 +6,8 @@
     "pages/feedback/feedback",
     "pages/about/about",
     "pages/tutorial/tutorial",
-    "pages/notice/notice"
+    "pages/notice/notice",
+    "pages/backup/backup"
   ],
   "window": {
     "navigationBarBackgroundColor": "#ffffff",

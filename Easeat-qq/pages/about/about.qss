@@ -24,6 +24,26 @@
   color: #3a4552;
 }
 
+.small {
+  font-size: 24rpx;
+  color: #6b7785;
+}
+
+.credit {
+  display: flex;
+  align-items: baseline;
+  margin-top: 12rpx;
+  padding: 16rpx 20rpx;
+  border-radius: 12rpx;
+  background: #f4f7f9;
+}
+
+.credit-name {
+  margin-right: 16rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
 .repo {
   display: flex;
   align-items: center;

@@ -2,6 +2,6 @@ const platform = require('./utils/platform');
 
 App({
   onLaunch() {
-    qq.cloud.init({ env: platform.cloudEnv, traceUser: true });
+    if (platform.mode === 'cloud') qq.cloud.init({ env: platform.cloudEnv, traceUser: true });
   },
 });

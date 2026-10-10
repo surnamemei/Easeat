@@ -1,0 +1,55 @@
+.intro {
+  margin: 12rpx 0 24rpx;
+}
+
+.summary {
+  margin-bottom: 24rpx;
+  padding: 20rpx 24rpx;
+  border-radius: 14rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  background: #f4f7f9;
+}
+
+.gap {
+  margin-top: 16rpx;
+}
+
+.tip {
+  margin-top: 16rpx;
+}
+
+.paste {
+  margin-top: 16rpx;
+}
+
+.paste-text {
+  width: 100%;
+  height: 260rpx;
+  margin-bottom: 16rpx;
+  padding: 16rpx 20rpx;
+  font-size: 26rpx;
+  background: #f4f7f9;
+  border-radius: 12rpx;
+}
+
+.link-box {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 20rpx;
+  border-radius: 12rpx;
+  background: #f4f7f9;
+}
+
+.link-text {
+  flex: 1;
+  font-size: 26rpx;
+  word-break: break-all;
+}
+
+.where {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #9aa5b1;
+  text-align: center;
+}

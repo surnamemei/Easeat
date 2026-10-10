@@ -1,7 +1,47 @@
 /**
- * 调用云函数。所有后台操作都在 easeat 云函数里，用 action 区分。
+ * 调用易位的业务逻辑（core/service.js）。
+ * 本机模式：直接在手机上运行，数据存在本地缓存里；
+ * 云端模式：调用云函数 easeat，用 action 区分操作。
+ * 两种模式的接口和返回值完全一样。
  */
+const platform = require('./platform');
+
 const FUNCTION = 'easeat';
+// 本机模式只有一个用户（这台设备）
+const LOCAL_USER = 'local';
+const STORAGE_PREFIX = 'easeat:';
+
+let localService = null;
+
+function isLocal() {
+  return platform.mode !== 'cloud';
+}
+
+function getLocalService() {
+  if (!localService) {
+    const { createService } = require('./core/service');
+    const { createLocalDatabase } = require('./core/local-db');
+    const db = createLocalDatabase({
+      load(name) {
+        try {
+          const docs = qq.getStorageSync(STORAGE_PREFIX + name);
+          return Array.isArray(docs) ? docs : null;
+        } catch (e) {
+          return null;
+        }
+      },
+      save(name, docs) {
+        qq.setStorageSync(STORAGE_PREFIX + name, docs);
+      },
+    });
+    localService = createService({
+      db,
+      autoOnOpen: true,
+      internalError: '保存失败，请重试。如果一直失败，可能是手机存储空间不足。',
+    });
+  }
+  return localService;
+}
 
 function connectionError(err) {
   console.error(err);
@@ -10,12 +50,21 @@ function connectionError(err) {
   return '网络连接失败，请检查网络后重试';
 }
 
-/** 调用云函数：成功时返回 data，失败时抛出 Error（message 可以直接展示） */
-function call(action, data, name) {
+/** 调用一个操作：成功时返回 data，失败时抛出 Error（message 可以直接展示） */
+function call(action, data) {
+  const event = Object.assign({ action }, data);
+  if (isLocal()) {
+    return getLocalService()
+      .call(action, JSON.parse(JSON.stringify(event)), LOCAL_USER)
+      .then((r) => {
+        if (r.ok) return r.data;
+        throw new Error(r.msg);
+      });
+  }
   return new Promise((resolve, reject) => {
     qq.cloud.callFunction({
-      name: name || FUNCTION,
-      data: Object.assign({ action }, data),
+      name: FUNCTION,
+      data: event,
       success(res) {
         const r = res.result;
         if (r && r.ok) resolve(r.data);
@@ -34,16 +83,15 @@ function showError(message, title) {
 
 /**
  * 带加载提示的调用。失败时自动弹窗提示并返回 null，调用方只需要判断返回值。
- * options.loading：加载提示文字，传 false 不显示
+ * options.loading：加载提示文字，传 false 不显示（本机模式很快，不显示加载提示）
  * options.success：成功后的提示文字
- * options.name：云函数名称（默认 easeat）
  */
 async function run(action, data, options) {
   options = options || {};
-  const loading = options.loading === undefined ? '请稍候' : options.loading;
+  const loading = isLocal() || options.loading === false ? false : options.loading || '请稍候';
   if (loading) qq.showLoading({ title: loading, mask: true });
   try {
-    const result = await call(action, data, options.name);
+    const result = await call(action, data);
     if (loading) qq.hideLoading();
     if (options.success) qq.showToast({ title: options.success, icon: 'success' });
     return result === undefined || result === null ? true : result;
@@ -54,4 +102,4 @@ async function run(action, data, options) {
   }
 }
 
-module.exports = { call, run, showError };
+module.exports = { call, run, showError, isLocal };

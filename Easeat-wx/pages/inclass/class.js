@@ -1,6 +1,10 @@
 const api = require('../../utils/api');
-const chart = require('../../utils/seat-chart');
+const chart = require('../../utils/core/seat-chart');
+const xlsx = require('../../utils/core/xlsx');
+const shareLink = require('../../utils/core/share-link');
+const files = require('../../utils/files');
 const platform = require('../../utils/platform');
+const share = require('../../utils/share');
 const { formatTime, readStorage, writeStorage } = require('../../utils/util');
 
 const MODES = [
@@ -24,6 +28,7 @@ function pixelRatio() {
 Page({
   data: {
     classId: '',
+    local: api.isLocal(),
     loaded: false,
     failed: false,
     owned: false,
@@ -55,6 +60,7 @@ Page({
     newHeight: '',
     showBatch: false,
     batchText: '',
+    showExport: false,
     dialog: null,
   },
 
@@ -78,9 +84,11 @@ Page({
     wx.setNavigationBarTitle({ title: detail.name });
     const changes = Object.assign({ loaded: true, failed: false }, detail);
     delete changes.id;
+    delete changes.autoArranged;
     if (!detail.settings) delete changes.settings;
     this.update(changes);
     if (this.data.open.layout) this.startLayoutEdit();
+    if (detail.autoArranged) wx.showToast({ title: '本周已自动重排', icon: 'success' });
   },
 
   /** 更新数据，并重新计算座位网格、未就座名单等派生数据 */
@@ -235,11 +243,39 @@ Page({
     }
   },
 
-  exportChart() {
-    if (!this.data.grid || !this.data.grid.seated) return toast('还没有座位表');
-    wx.showActionSheet({
-      itemList: ['生成图片（可保存、转发）', '复制到 Excel / WPS'],
-      success: (res) => (res.tapIndex === 0 ? this.saveImage() : this.copyTable()),
+  toggleExport() {
+    if (!this.data.showExport && (!this.data.grid || !this.data.grid.seated)) return toast('还没有座位表');
+    this.setData({ showExport: !this.data.showExport });
+  },
+
+  /** 导出 Excel 文件：座位表（创建者还会多一张学生名单），转发到聊天或保存到电脑 */
+  exportExcel() {
+    const { name, seats, arrangement, flip, owned, students, arrangedAt } = this.data;
+    let bytes;
+    try {
+      const sheets = [chart.chartSheet({ title: `${name} 座位表`, subtitle: arrangedAt ? `排座时间：${formatTime(arrangedAt)}` : '', seats, arrangement, flip })];
+      if (owned && students.length) sheets.push(chart.rosterSheet(students, seats, arrangement));
+      bytes = xlsx.write(sheets);
+    } catch (err) {
+      console.error(err);
+      return api.showError('生成 Excel 文件失败，请重试');
+    }
+    // 生成文件后立即转发，中间不能有异步操作（iOS 只允许点击直接触发转发文件）
+    files.shareFile(bytes, `${name}座位表-${files.dateStamp(arrangedAt)}.xlsx`, 'xlsx').catch((err) => api.showError(err.message));
+  },
+
+  /** 复制只读的网页链接：家长在浏览器里打开即可查看座位表 */
+  copyViewLink() {
+    const { name, seats, arrangement, arrangedAt } = this.data;
+    const url = shareLink.viewUrl({ name, seats, arrangement, arrangedAt });
+    wx.setClipboardData({
+      data: url,
+      success: () =>
+        wx.showModal({
+          title: '链接已复制',
+          content: '发给学生和家长，在浏览器里打开就能看到座位表。这是当前座位表的快照，重新排座后请再复制一次。',
+          showCancel: false,
+        }),
     });
   },
 
@@ -341,38 +377,20 @@ Page({
     wx.showToast({ title: `已添加 ${res.added} 人`, icon: 'success' });
   },
 
-  importExcel() {
-    wx.chooseMessageFile({
-      count: 1,
-      type: 'file',
-      success: (res) => this.uploadRoster(res.tempFiles[0]),
-      fail: (err) => {
-        if (!/cancel/.test(err.errMsg)) api.showError(`无法选择文件（${err.errMsg}）。也可以用「粘贴名单」添加。`);
-      },
-    });
-  },
-
-  uploadRoster(file) {
-    const ext = (/\.(xlsx|xls|csv)$/i.exec(file.name || file.path) || [])[1];
-    if (!ext) return api.showError('请选择 Excel 表格文件（.xlsx 或 .xls）');
-    wx.showLoading({ title: '正在上传', mask: true });
-    wx.cloud.uploadFile({
-      cloudPath: `NameLists/${this.data.classId}-${Date.now()}.${ext.toLowerCase()}`,
-      filePath: file.path,
-      success: async (uploaded) => {
-        wx.hideLoading();
-        const parsed = await api.run('', { fileID: uploaded.fileID }, { name: 'parseRoster', loading: '正在读取' });
-        if (!parsed) return;
-        const res = await api.run('addStudents', { classId: this.data.classId, rows: parsed.rows }, { loading: '正在添加' });
-        if (!res) return;
-        this.update({ students: res.students });
-        wx.showToast({ title: `已添加 ${res.added} 人`, icon: 'success' });
-      },
-      fail: (err) => {
-        wx.hideLoading();
-        api.showError(`上传失败：${err.errMsg}`);
-      },
-    });
+  /** 导入 Excel / CSV 名单：文件在手机上读取，不会上传 */
+  async importExcel() {
+    let rows;
+    try {
+      const file = await files.chooseFile();
+      if (!file) return;
+      rows = xlsx.readTable(file.bytes);
+    } catch (err) {
+      return api.showError(err.message);
+    }
+    const res = await api.run('addStudents', { classId: this.data.classId, rows }, { loading: '正在添加' });
+    if (!res) return;
+    this.update({ students: res.students });
+    wx.showToast({ title: `已添加 ${res.added} 人`, icon: 'success' });
   },
 
   deleteStudent(e) {
@@ -397,7 +415,7 @@ Page({
     const res = await api.run('updateClass', { classId: this.data.classId, settings: { autoWeekly } }, { loading: false });
     if (res) {
       this.update({ settings: res.settings });
-      if (autoWeekly) toast('每周一早上 6:00 自动重排');
+      if (autoWeekly) toast(this.data.local ? '每周第一次打开时自动重排' : '每周一早上 6:00 自动重排');
     } else {
       // 恢复开关的显示状态
       this.setData({ 'settings.autoWeekly': autoWeekly });
@@ -510,6 +528,8 @@ Page({
   },
 
   onShareAppMessage() {
+    // 本机模式下别人无法加入班级，只分享小程序本身
+    if (this.data.local) return share.appMessage();
     return {
       title: `邀请你加入「${this.data.name}」，查看座位表`,
       path: `/pages/index/index?join=${encodeURIComponent(this.data.classId)}`,

@@ -1,0 +1,34 @@
+<view class="page">
+  <view class="card">
+    <view class="card-title">导出备份</view>
+    <view class="hint intro">把所有班级的名单、教室布局和座位表保存成一个文件。换手机、清理缓存后，或者想在网页版继续使用时，可以从备份恢复。</view>
+    <view class="summary">{{loading ? '正在读取…' : summary}}</view>
+    <view qq:if="{{canShareFile}}" class="btn primary" hover-class="btn-hover" bindtap="exportFile">发送备份文件</view>
+    <view class="btn {{canShareFile ? 'light gap' : 'primary'}}" hover-class="btn-hover" bindtap="copyBackup">复制备份内容</view>
+    <view class="hint tip">建议发送到「文件传输助手」保存。</view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">从备份恢复</view>
+    <view class="hint intro">备份里的班级会作为新班级添加，不会覆盖现有的班级。</view>
+    <view class="btn-row">
+      <view class="btn light" hover-class="btn-hover" bindtap="restoreFile">选择备份文件</view>
+      <view class="btn light" hover-class="btn-hover" bindtap="togglePaste">{{showPaste ? '收起' : '粘贴备份内容'}}</view>
+    </view>
+    <view qq:if="{{showPaste}}" class="paste">
+      <textarea class="paste-text" placeholder="把复制的备份内容粘贴到这里" placeholder-class="placeholder" maxlength="-1" value="{{pasteText}}" bindinput="onPaste" />
+      <view class="btn primary" hover-class="btn-hover" bindtap="restorePasted">恢复</view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">网页版</view>
+    <view class="hint intro">在电脑或平板的浏览器里打开网页版，导入同一个备份文件就能继续使用，功能和小程序一样。</view>
+    <view class="link-box">
+      <text class="link-text">{{siteUrl}}</text>
+      <view class="btn small light" hover-class="btn-hover" bindtap="copySite">复制</view>
+    </view>
+  </view>
+
+  <view class="where">数据保存在：{{local ? '这台设备' : '云端'}}</view>
+</view>

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { arrange, fitToLayout, columnGroups, matchesLayout, ArrangeError } = require('../Easeat-wx/cloudfunctions/easeat/arrange');
+const { arrange, fitToLayout, columnGroups, matchesLayout, ArrangeError } = require('../core/arrange');
 
 /** 固定种子的随机数，保证测试结果可重复 */
 function seeded(seed) {

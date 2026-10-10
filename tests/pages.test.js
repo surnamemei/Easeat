@@ -1,8 +1,13 @@
 /**
- * 页面测试：像用户一样操作小程序页面，页面 → 云函数 → 数据库全程走真实代码。
+ * 页面测试：像用户一样操作小程序页面，页面 → 业务逻辑 → 数据库全程走真实代码。
+ * 微信版、QQ 版各跑一遍，每个平台又分本机模式（默认）和云端模式。
  */
 const assert = require('node:assert/strict');
+const fs = require('fs');
+const path = require('path');
 const { createMiniProgram, tap } = require('./helpers/mock-wx');
+const xlsx = require('../core/xlsx');
+const shareLink = require('../core/share-link');
 
 const ROSTER = ['姓名\t身高', '张一\t150', '李二\t152', '王三\t160', '赵四\t171', '钱五\t155', '孙六\t166', '周七', '吴八\t158'].join('\n');
 
@@ -11,10 +16,12 @@ function deskCells(page) {
 }
 
 for (const platform of ['wx', 'qq']) {
-  const test = (name, fn) => require('node:test')(`[${platform}] ${name}`, fn);
+for (const mode of ['local', 'cloud']) {
+  const test = (name, fn) => require('node:test')(`[${platform} ${mode}] ${name}`, fn);
+  const cloudOnly = (name, fn) => mode === 'cloud' && test(name, fn);
 
   test('teacher creates a class, adds students, arranges and edits seats', async (t) => {
-    const app = createMiniProgram({ platform });
+    const app = createMiniProgram({ platform, mode });
     t.after(() => app.restore());
 
     // 首页创建班级
@@ -80,7 +87,7 @@ for (const platform of ['wx', 'qq']) {
     page.tapSeat(tap({ r: b.r, c: b.c }));
     page.tapSeat(tap({ r: a.r, c: a.c }));
     await app.settle();
-    assert.equal(app.log.calls.filter((c) => c === 'swapSeats').length, 1);
+    if (mode === 'cloud') assert.equal(app.log.calls.filter((c) => c === 'swapSeats').length, 1);
     assert.equal(page.data.selected, null);
     assert.equal(page.data.arrangement[a.r][a.c], b.name);
     assert.equal(page.data.arrangement[b.r][b.c], a.name);
@@ -157,8 +164,8 @@ for (const platform of ['wx', 'qq']) {
     assert.deepEqual(page.data.pairs, []);
   });
 
-  test('students and parents join from a shared card and can only view', async (t) => {
-    const app = createMiniProgram({ platform });
+  cloudOnly('students and parents join from a shared card and can only view', async (t) => {
+    const app = createMiniProgram({ platform, mode });
     t.after(() => app.restore());
 
     const home = app.open('pages/index/index');
@@ -208,15 +215,21 @@ for (const platform of ['wx', 'qq']) {
     assert.deepEqual(parentHome.data.joined, []);
   });
 
-  test('errors from the cloud are shown to the user', async (t) => {
-    const app = createMiniProgram({ platform });
+  test('errors are shown to the user', async (t) => {
+    const app = createMiniProgram({ platform, mode });
     t.after(() => app.restore());
     const home = app.open('pages/index/index');
     await app.settle();
-    home.showJoin();
-    home.onDialogConfirm({ detail: { value: 'zzzzzz' } });
+    if (mode === 'cloud') {
+      home.showJoin();
+      home.onDialogConfirm({ detail: { value: 'zzzzzz' } });
+      await app.settle();
+      assert.match(app.log.modals.pop().content, /找不到这个班级/);
+    }
+    home.showCreate();
+    home.onDialogConfirm({ detail: { value: '一'.repeat(21) } });
     await app.settle();
-    assert.match(app.log.modals.pop().content, /找不到这个班级/);
+    assert.match(app.log.modals.pop().content, /最多 20 个字/);
 
     const page = app.open('pages/inclass/class', { classId: 'zzzzzz' });
     await app.settle();
@@ -224,7 +237,7 @@ for (const platform of ['wx', 'qq']) {
   });
 
   test('other pages load', async (t) => {
-    const app = createMiniProgram({ platform });
+    const app = createMiniProgram({ platform, mode });
     t.after(() => app.restore());
     for (const route of ['personal/personal', 'tutorial/tutorial', 'notice/notice', 'about/about', 'feedback/feedback']) {
       const page = app.open(`pages/${route}`);
@@ -239,4 +252,156 @@ for (const platform of ['wx', 'qq']) {
     assert.equal(app.log.clipboard, 'https://github.com/surnamemei/Easeat/issues');
     assert.equal(feedback.data.isQQ, platform === 'qq');
   });
+
+  test('exports the seating chart as an Excel file and a web link', async (t) => {
+    const app = createMiniProgram({ platform, mode });
+    t.after(() => app.restore());
+    const { page, classId } = await setUpClass(app);
+
+    page.toggleExport();
+    assert.equal(page.data.showExport, true);
+    page.exportExcel();
+    await app.settle();
+    const [file] = app.log.sharedFiles;
+    assert.match(file.fileName, /^高一（3）班座位表-\d{4}-\d{2}-\d{2}\.xlsx$/);
+    const sheets = xlsx.readWorkbook(file.bytes);
+    assert.deepEqual(sheets.map((s) => s.name), ['座位表', '学生名单']);
+    const seated = [].concat(...sheets[0].rows.slice(4)).filter(Boolean);
+    assert.deepEqual(seated.sort(), page.data.students.map((s) => s.name).sort());
+    assert.equal(sheets[1].rows.length, page.data.students.length + 1);
+
+    page.copyViewLink();
+    const viewed = shareLink.decode(app.log.clipboard.split('#view=')[1]);
+    assert.deepEqual(viewed.arrangement, page.data.arrangement);
+    assert.equal(viewed.name, '高一（3）班');
+    assert.ok(classId);
+  });
+
+  test('imports a roster from an Excel file chosen in a chat', async (t) => {
+    const app = createMiniProgram({ platform, mode });
+    t.after(() => app.restore());
+    const { page } = await setUpClass(app);
+    const before = page.data.students.length;
+    app.pickFile('名单.xlsx', fs.readFileSync(path.join(__dirname, 'fixtures/roster.xlsx')));
+    await page.importExcel();
+    await app.settle();
+    assert.deepEqual(page.data.students.slice(before).map((s) => [s.name, s.height]), [
+      ['张三', 165],
+      ['李四', 158],
+      ['Tom & Jerry <A>', 172],
+      ['王五', null],
+    ]);
+    app.pickFile('old.xls', Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0, 0, 0, 0]));
+    await page.importExcel();
+    assert.match(app.log.modals.pop().content, /另存为/);
+  });
+
+  test('backs up every class and restores them on another device', async (t) => {
+    const app = createMiniProgram({ platform, mode });
+    t.after(() => app.restore());
+    const { page } = await setUpClass(app);
+    page.onPickA({ detail: { value: '0' } });
+    page.onPickB({ detail: { value: '1' } });
+    page.addPair();
+    await app.settle();
+
+    const backupPage = app.open('pages/backup/backup');
+    await app.settle();
+    assert.equal(backupPage.data.summary, '1 个班级 · 8 名学生');
+    backupPage.exportFile();
+    const backupFile = app.log.sharedFiles.pop();
+    assert.match(backupFile.fileName, /^易位备份-\d{4}-\d{2}-\d{2}\.json$/);
+    const backup = JSON.parse(backupFile.bytes.toString('utf8'));
+    assert.equal(backup.classes[0].students.length, 8);
+
+    // 另一台设备（全新的本地数据）
+    const other = createMiniProgram({ platform, mode });
+    t.after(() => other.restore());
+    const restorePage = other.open('pages/backup/backup');
+    await other.settle();
+    assert.equal(restorePage.data.summary, '还没有班级');
+    other.pickFile(backupFile.fileName, backupFile.bytes);
+    other.answerModal({ confirm: true });
+    await restorePage.restoreFile();
+    await other.settle();
+    assert.equal(restorePage.data.summary, '1 个班级 · 8 名学生');
+
+    const home = other.open('pages/index/index');
+    await other.settle();
+    const restored = other.open('pages/inclass/class', { classId: home.data.owned[0].id });
+    await other.settle();
+    assert.deepEqual(restored.data.arrangement, page.data.arrangement);
+    assert.deepEqual(restored.data.pairs.map((p) => p.text), page.data.pairs.map((p) => p.text));
+
+    restorePage.onPaste({ detail: { value: '{"hello": 1}' } });
+    restorePage.restorePasted();
+    assert.match(other.log.modals.pop().content, /不是易位的备份文件/);
+  });
+}
+}
+
+for (const platform of ['wx', 'qq']) {
+  const test = (name, fn) => require('node:test')(`[${platform} local] ${name}`, fn);
+
+  test('the demo class is ready to explore', async (t) => {
+    const app = createMiniProgram({ platform, mode: 'local' });
+    t.after(() => app.restore());
+    const home = app.open('pages/index/index');
+    await app.settle();
+    await home.createDemo();
+    await app.settle();
+    const url = app.log.navigations.pop();
+    const page = app.open('pages/inclass/class', { classId: decodeURIComponent(url.split('classId=')[1]) });
+    await app.settle();
+    assert.equal(page.data.name, '示例班级');
+    assert.equal(page.data.students.length, 40);
+    assert.equal(page.data.grid.seated, 40);
+    // 再点一次不会重复创建
+    await home.createDemo();
+    await app.settle();
+    assert.equal(home.data.owned.length, 1);
+  });
+
+  test('weekly auto-rearrange runs the first time the class is opened in a new week', async (t) => {
+    const app = createMiniProgram({ platform, mode: 'local' });
+    t.after(() => app.restore());
+    const { page, classId } = await setUpClass(app);
+    page.toggleAuto({ detail: { value: true } });
+    await app.settle();
+    const before = page.data.arrangement;
+
+    // 把上次排座时间改到两周前，模拟过了一段时间再打开
+    const storage = JSON.parse(JSON.stringify(app.storage));
+    storage['easeat:classArrangement'].forEach((doc) => (doc.arrangedAt -= 14 * 24 * 3600 * 1000));
+    const later = createMiniProgram({ platform, mode: 'local', storage });
+    t.after(() => later.restore());
+    const reopened = later.open('pages/inclass/class', { classId });
+    await later.settle();
+    assert.equal(reopened.data.arrangedBy, 'auto');
+    assert.ok(later.log.toasts.includes('本周已自动重排'));
+    assert.equal([].concat(...reopened.data.arrangement).filter(Boolean).length, [].concat(...before).filter(Boolean).length);
+
+    // 同一周里再打开不会再排
+    const again = later.open('pages/inclass/class', { classId });
+    await later.settle();
+    assert.deepEqual(again.data.arrangement, reopened.data.arrangement);
+  });
+}
+
+/** 创建一个有 8 名学生、已经排好座位的班级，返回班级页 */
+async function setUpClass(app) {
+  const home = app.open('pages/index/index');
+  await app.settle();
+  home.showCreate();
+  home.onDialogConfirm({ detail: { value: '高一（3）班' } });
+  await app.settle();
+  const classId = home.data.owned[0].id;
+  const page = app.open('pages/inclass/class', { classId });
+  await app.settle();
+  page.onBatchInput({ detail: { value: ROSTER } });
+  page.addBatch();
+  await app.settle();
+  page.arrange();
+  await app.settle();
+  return { page, classId };
 }

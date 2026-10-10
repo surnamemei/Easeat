@@ -19,7 +19,12 @@
       <view class="action-title">创建班级</view>
       <view class="action-sub">老师排座位</view>
     </view>
-    <view class="action" hover-class="btn-hover" bindtap="showJoin">
+    <view wx:if="{{local}}" class="action" hover-class="btn-hover" bindtap="createDemo">
+      <view class="action-icon join">试</view>
+      <view class="action-title">示例班级</view>
+      <view class="action-sub">先体验一下</view>
+    </view>
+    <view wx:else class="action" hover-class="btn-hover" bindtap="showJoin">
       <view class="action-icon join">→</view>
       <view class="action-title">加入班级</view>
       <view class="action-sub">学生、家长查看座位</view>
@@ -27,7 +32,7 @@
   </view>
 
   <block wx:if="{{loaded}}">
-    <view wx:if="{{owned.length}}" class="section-title">我创建的班级</view>
+    <view wx:if="{{owned.length}}" class="section-title">{{local ? '我的班级' : '我创建的班级'}}</view>
     <view
       wx:for="{{owned}}"
       wx:key="id"
@@ -38,7 +43,7 @@
     >
       <view class="class-main">
         <view class="class-name">{{item.name}}</view>
-        <view class="class-id">ID：{{item.id}}</view>
+        <view wx:if="{{item.meta}}" class="class-id">{{item.meta}}</view>
       </view>
       <view class="class-op" hover-class="btn-hover" data-id="{{item.id}}" data-name="{{item.name}}" catchtap="deleteClass">删除</view>
     </view>
@@ -54,15 +59,17 @@
     >
       <view class="class-main">
         <view class="class-name">{{item.name}}</view>
-        <view class="class-id">ID：{{item.id}}</view>
+        <view wx:if="{{item.meta}}" class="class-id">{{item.meta}}</view>
       </view>
       <view class="class-op" hover-class="btn-hover" data-id="{{item.id}}" data-name="{{item.name}}" catchtap="quitClass">退出</view>
     </view>
 
     <view wx:if="{{!owned.length && !joined.length}}" class="empty">
       <image class="empty-image" src="/images/no_data.png" />
-      <text class="empty-text">还没有班级。\n老师请先创建班级；学生和家长请向老师要班级 ID，\n或直接点开老师分享的班级卡片。</text>
+      <text wx:if="{{local}}" class="empty-text">还没有班级。\n点「创建班级」开始，或先打开「示例班级」体验一下。</text>
+      <text wx:else class="empty-text">还没有班级。\n老师请先创建班级；学生和家长请向老师要班级 ID，\n或直接点开老师分享的班级卡片。</text>
     </view>
+    <view wx:if="{{local}}" class="local-note">班级数据保存在这台设备上。换手机前请在「我的 → 备份与恢复」导出备份。</view>
   </block>
 </view>
 

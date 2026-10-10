@@ -175,6 +175,32 @@
   margin-top: 24rpx;
 }
 
+.export {
+  margin-top: 20rpx;
+  border-radius: 14rpx;
+  background: #f4f7f9;
+  overflow: hidden;
+}
+
+.export-item {
+  padding: 20rpx 24rpx;
+  border-bottom: 1rpx solid #e3e8ee;
+}
+
+.export-item:last-child {
+  border-bottom: none;
+}
+
+.export-title {
+  font-size: 30rpx;
+  font-weight: 500;
+  color: #1683c0;
+}
+
+.share-intro {
+  margin-bottom: 20rpx;
+}
+
 /* 学生名单 */
 .add-row {
   display: flex;

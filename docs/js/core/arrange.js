@@ -1,3 +1,4 @@
+// 此文件由 scripts/sync.js 从仓库根目录的 core/ 复制而来，请修改 core/ 中的原文件。
 /**
  * 易位 eaSEAT 排座算法（纯函数，不依赖数据库，可在云函数、网页演示和测试中共用）
  *
@@ -145,7 +146,7 @@
       })
     );
     const missing = [];
-    for (const list of byName.values()) missing.push(...list);
+    byName.forEach((list) => missing.push(...list));
     return { grid, missing };
   }
 

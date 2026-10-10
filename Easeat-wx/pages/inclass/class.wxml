@@ -10,8 +10,8 @@
       <view class="head-name">{{name}}</view>
       <view class="head-meta">
         <text class="tag">{{owned ? '我创建的' : '我加入的'}}</text>
-        <text class="muted head-id">ID {{classId}}</text>
-        <text wx:if="{{owned}}" class="muted"> · {{students.length}} 名学生</text>
+        <text wx:if="{{!local}}" class="muted head-id">ID {{classId}}</text>
+        <text wx:if="{{owned}}" class="muted head-id">{{local ? '' : '· '}}{{students.length}} 名学生</text>
       </view>
     </view>
     <view wx:if="{{owned}}" class="btn small light" hover-class="btn-hover" bindtap="showRename">改名</view>
@@ -73,10 +73,30 @@
       <view class="hint mode-desc">{{modeDesc}}</view>
       <view class="btn-row">
         <view class="btn primary" hover-class="btn-hover" bindtap="arrange">重新排座</view>
-        <view class="btn light" hover-class="btn-hover" bindtap="exportChart">导出</view>
+        <view class="btn light" hover-class="btn-hover" bindtap="toggleExport">{{showExport ? '收起导出' : '导出'}}</view>
       </view>
     </block>
-    <view wx:elif="{{grid && grid.seated}}" class="btn light export-only" hover-class="btn-hover" bindtap="exportChart">保存 / 导出座位表</view>
+    <view wx:elif="{{grid && grid.seated}}" class="btn light export-only" hover-class="btn-hover" bindtap="toggleExport">{{showExport ? '收起导出' : '保存 / 导出座位表'}}</view>
+
+    <!-- 导出：每个按钮都直接响应点击（转发文件必须由点击直接触发） -->
+    <view wx:if="{{showExport}}" class="export">
+      <view class="export-item" hover-class="list-hover" bindtap="saveImage">
+        <view class="export-title">生成图片</view>
+        <view class="hint">长按图片可以保存或转发到家长群</view>
+      </view>
+      <view class="export-item" hover-class="list-hover" bindtap="exportExcel">
+        <view class="export-title">发送 Excel 文件</view>
+        <view class="hint">{{owned ? '座位表和学生名单两张工作表，可直接打印' : '可以直接打印的座位表'}}</view>
+      </view>
+      <view class="export-item" hover-class="list-hover" bindtap="copyTable">
+        <view class="export-title">复制表格</view>
+        <view class="hint">粘贴到 Excel / WPS，每个名字自动占一格</view>
+      </view>
+      <view class="export-item" hover-class="list-hover" bindtap="copyViewLink">
+        <view class="export-title">复制网页链接</view>
+        <view class="hint">在浏览器里打开就能查看，不需要小程序</view>
+      </view>
+    </view>
   </view>
 
   <block wx:if="{{owned}}">
@@ -131,7 +151,8 @@
         <view class="rule">
           <view class="rule-main">
             <view class="rule-title">每周自动重排</view>
-            <view class="hint">每周一早上 6:00 按「{{modeName}}」自动重新排座，打开小程序就能看到新座位。</view>
+            <view wx:if="{{local}}" class="hint">每周一 6:00 以后第一次打开这个班级时，按「{{modeName}}」自动重新排座。</view>
+            <view wx:else class="hint">每周一早上 6:00 按「{{modeName}}」自动重新排座，打开小程序就能看到新座位。</view>
           </view>
           <switch checked="{{settings.autoWeekly}}" color="#1683c0" bindchange="toggleAuto" />
         </view>
@@ -206,11 +227,18 @@
   <!-- 分享 -->
   <view class="card">
     <view class="card-header" bindtap="toggle" data-key="share">
-      <view class="card-title">分享班级</view>
-      <view wx:if="{{owned}}" class="card-extra">{{memberCount}} 人已加入</view>
+      <view class="card-title">分享给学生和家长</view>
+      <view wx:if="{{owned && !local}}" class="card-extra">{{memberCount}} 人已加入</view>
       <image class="chevron {{open.share ? '' : 'closed'}}" src="/images/drop_down.svg" />
     </view>
-    <view wx:if="{{open.share}}" class="card-body">
+    <view wx:if="{{open.share && local}}" class="card-body">
+      <view class="hint share-intro">班级数据只保存在这台设备上。可以把座位表图片或 Excel 文件发到家长群，也可以复制网页链接，学生和家长在浏览器里打开就能查看。</view>
+      <view class="btn-row">
+        <view class="btn primary" hover-class="btn-hover" bindtap="copyViewLink">复制网页链接</view>
+        <view class="btn light" hover-class="btn-hover" bindtap="exportExcel">发送 Excel</view>
+      </view>
+    </view>
+    <view wx:if="{{open.share && !local}}" class="card-body">
       <view class="id-box">
         <view class="id-main">
           <view class="muted">班级 ID</view>
