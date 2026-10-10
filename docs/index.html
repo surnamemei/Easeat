@@ -4,395 +4,43 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>易位 eaSEAT</title>
-  <meta name="description" content="易位 eaSEAT：帮老师自动排座位的微信 / QQ 小程序。按身高或随机排座、大组轮换、不相邻名单、每周自动重排。">
+  <meta name="description" content="易位 eaSEAT：帮老师自动排座位。按身高或随机排座、大组轮换、不相邻名单、每周自动重排，可以导出 Excel 和图片。网页版无需安装，数据只保存在你的浏览器里。">
   <link rel="icon" href="assets/logo.png">
-  <style>
-    :root {
-      --bg: #f4f7f9;
-      --surface: #ffffff;
-      --surface-2: #eef3f6;
-      --text: #1f2933;
-      --muted: #5f6b78;
-      --line: #e1e7ed;
-      --brand: #1683c0;
-      --brand-strong: #0f6a9e;
-      --brand-soft: #e3f2f8;
-      --accent: #52beee;
-      --danger: #c2410c;
-      --shadow: 0 1px 2px rgba(15, 40, 60, 0.05), 0 8px 24px rgba(15, 40, 60, 0.06);
-      color-scheme: light;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root:not([data-theme="light"]) {
-        --bg: #0f1418;
-        --surface: #182026;
-        --surface-2: #212b33;
-        --text: #e6edf2;
-        --muted: #9aa8b4;
-        --line: #2b3640;
-        --brand: #4fb3e8;
-        --brand-strong: #7cc9f0;
-        --brand-soft: #16303f;
-        --danger: #f59e6b;
-        --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
-        color-scheme: dark;
-      }
-    }
-    :root[data-theme="dark"] {
-      --bg: #0f1418;
-      --surface: #182026;
-      --surface-2: #212b33;
-      --text: #e6edf2;
-      --muted: #9aa8b4;
-      --line: #2b3640;
-      --brand: #4fb3e8;
-      --brand-strong: #7cc9f0;
-      --brand-soft: #16303f;
-      --danger: #f59e6b;
-      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
-      color-scheme: dark;
-    }
-
-    * { box-sizing: border-box; }
-    html { -webkit-text-size-adjust: 100%; }
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
-      font: 16px/1.7 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Helvetica Neue", sans-serif;
-    }
-    a { color: var(--brand); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .wrap { max-width: 1080px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
-
-    /* 顶部 */
-    header { padding: 56px 0 40px; }
-    .hero { display: grid; grid-template-columns: 1fr; gap: 32px; align-items: center; }
-    .brand { display: flex; align-items: center; gap: 16px; }
-    .brand img { width: 72px; height: 72px; border-radius: 18px; }
-    .brand h1 { margin: 0; font-size: 34px; line-height: 1.2; letter-spacing: 0.5px; }
-    .brand p { margin: 2px 0 0; color: var(--muted); }
-    .lead { font-size: 19px; margin: 24px 0 0; max-width: 34em; text-wrap: pretty; }
-    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
-    .btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-      min-height: 44px; padding: 0 20px; border-radius: 12px; border: 0;
-      font: inherit; font-weight: 600; cursor: pointer;
-      background: var(--surface-2); color: var(--text);
-    }
-    .btn:hover { text-decoration: none; filter: brightness(0.97); }
-    .btn.primary { background: var(--brand); color: #fff; }
-    :root[data-theme="dark"] .btn.primary { color: #0b1a24; }
-    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.primary { color: #0b1a24; } }
-    .btn.soft { background: var(--brand-soft); color: var(--brand-strong); }
-    .btn.small { min-height: 36px; padding: 0 14px; border-radius: 10px; font-size: 14px; }
-    .btn:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-    .platforms { margin-top: 16px; color: var(--muted); font-size: 14px; }
-
-    section { padding: 40px 0; }
-    h2 { font-size: 26px; margin: 0 0 8px; line-height: 1.3; }
-    .sub { color: var(--muted); margin: 0 0 24px; }
-
-    /* 功能 */
-    .features { display: grid; grid-template-columns: 1fr; gap: 16px; }
-    .feature { background: var(--surface); border-radius: 16px; padding: 20px; box-shadow: var(--shadow); }
-    .feature h3 { margin: 0 0 6px; font-size: 18px; }
-    .feature p { margin: 0; color: var(--muted); font-size: 15px; }
-    .feature .icon { width: 36px; height: 36px; border-radius: 10px; background: var(--brand-soft); color: var(--brand-strong); display: grid; place-items: center; font-weight: 700; margin-bottom: 12px; }
-
-    /* 截图 */
-    .shots { display: flex; gap: 20px; overflow-x: auto; padding: 4px 4px 16px; scroll-snap-type: x mandatory; }
-    .shot { flex: 0 0 240px; scroll-snap-align: start; margin: 0; }
-    .shot .frame { height: 480px; overflow: hidden; border-radius: 22px; border: 6px solid var(--surface); box-shadow: var(--shadow); background: #f4f7f9; }
-    .shot img { width: 100%; height: auto; display: block; }
-    .shot figcaption { text-align: center; color: var(--muted); font-size: 14px; margin-top: 10px; }
-
-    /* 在线体验 */
-    .demo { display: grid; grid-template-columns: 1fr; gap: 20px; }
-    .panel { background: var(--surface); border-radius: 16px; padding: 20px; box-shadow: var(--shadow); min-width: 0; }
-    .panel h3 { margin: 0 0 12px; font-size: 17px; }
-    label { display: block; font-size: 14px; color: var(--muted); margin: 14px 0 6px; }
-    label:first-of-type { margin-top: 0; }
-    textarea, input[type="number"] {
-      width: 100%; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); color: var(--text);
-      font: inherit; font-size: 15px; padding: 10px 12px;
-    }
-    textarea { min-height: 150px; resize: vertical; line-height: 1.6; }
-    #pairs { min-height: 72px; }
-    .nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-    .nums input { text-align: center; }
-    .segmented { display: flex; background: var(--surface-2); border-radius: 12px; padding: 4px; gap: 4px; }
-    .segmented button {
-      flex: 1; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 15px;
-      min-height: 40px; border-radius: 9px; cursor: pointer;
-    }
-    .segmented button[aria-pressed="true"] { background: var(--surface); color: var(--brand-strong); font-weight: 600; box-shadow: 0 1px 4px rgba(15, 40, 60, 0.12); }
-    .mode-desc { font-size: 14px; color: var(--muted); margin: 8px 2px 0; min-height: 3em; }
-    #run { width: 100%; margin-top: 16px; }
-    .chart-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
-    .chart-bar h3 { margin: 0 auto 0 0; }
-    .chart-box { background: #fff; border-radius: 12px; border: 1px solid var(--line); overflow-x: auto; }
-    #chart { display: block; width: 100%; min-width: 560px; height: auto; }
-    #status { margin: 12px 2px 0; font-size: 14px; color: var(--muted); min-height: 1.7em; }
-    #status.error { color: var(--danger); }
-    .note { font-size: 13px; color: var(--muted); margin-top: 12px; }
-
-    /* 原理 */
-    .how { display: grid; grid-template-columns: 1fr; gap: 16px; }
-    .how div { background: var(--surface); border-radius: 16px; padding: 20px; box-shadow: var(--shadow); }
-    .how h3 { margin: 0 0 6px; font-size: 17px; }
-    .how p { margin: 0; color: var(--muted); font-size: 15px; }
-    code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.9em; background: var(--surface-2); padding: 1px 6px; border-radius: 6px; }
-
-    footer { padding: 40px 0 56px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); margin-top: 24px; }
-    footer p { margin: 4px 0; }
-
-    @media (min-width: 720px) {
-      .features { grid-template-columns: repeat(2, 1fr); }
-      .how { grid-template-columns: repeat(2, 1fr); }
-    }
-    @media (min-width: 960px) {
-      header { padding: 80px 0 48px; }
-      .hero { grid-template-columns: 1.1fr 0.9fr; }
-      .brand h1 { font-size: 40px; }
-      .features { grid-template-columns: repeat(3, 1fr); }
-      .demo { grid-template-columns: 340px 1fr; align-items: start; }
-      .shots { justify-content: center; overflow: visible; }
-    }
-  </style>
+  <link rel="stylesheet" href="app.css">
 </head>
 <body>
-  <header class="wrap">
-    <div class="hero">
-      <div>
-        <div class="brand">
-          <img src="assets/logo.png" alt="易位 logo：一把椅子">
-          <div>
-            <h1>易位 eaSEAT</h1>
-            <p>老师的排座位小助手</p>
-          </div>
-        </div>
-        <p class="lead">录入学生名单、画好教室布局，一键排好座位。可以按身高、完全随机或大组轮换，指定不坐在一起的同学，还能每周一早上自动重排。学生和家长加入班级后随时查看最新座位表。</p>
-        <div class="actions">
-          <a class="btn primary" href="#demo">在线体验排座</a>
-          <a class="btn soft" href="https://github.com/surnamemei/Easeat">查看源代码</a>
-        </div>
-        <p class="platforms">微信小程序 · QQ 小程序 · 由武汉英中高级中学的学生团队开发</p>
-      </div>
-      <figure class="shot" style="margin: 0 auto;">
-        <div class="frame"><img src="assets/screens/class.png" alt="班级页面：座位表、排座方式和重新排座按钮" width="750" height="1914"></div>
-      </figure>
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="#/"><img src="assets/logo.png" alt=""><span>易位 eaSEAT</span></a>
+      <nav class="nav" aria-label="主菜单">
+        <a href="#/" data-nav="home">我的班级</a>
+        <a href="#/about" data-nav="about">关于</a>
+      </nav>
     </div>
   </header>
 
-  <section class="wrap" id="features">
-    <h2>功能</h2>
-    <p class="sub">2.0 版本新增了大组轮换、不相邻名单和每周自动重排。</p>
-    <div class="features">
-      <div class="feature"><div class="icon">高</div><h3>按身高排座</h3><p>矮的同学坐前面；身高相近的同学每次随机交换位置，没填身高的同学随机安排。</p></div>
-      <div class="feature"><div class="icon">轮</div><h3>大组轮换</h3><p>每个大组整体向右移一组，最右边的组移到最左边，同桌和前后排都不变。</p></div>
-      <div class="feature"><div class="icon">隔</div><h3>不相邻名单</h3><p>指定两位同学，排座时他们既不做同桌，也不坐前后桌。</p></div>
-      <div class="feature"><div class="icon">周</div><h3>每周自动重排</h3><p>打开后每周一早上 6:00 自动换座位，打开小程序就能看到。</p></div>
-      <div class="feature"><div class="icon">换</div><h3>点选交换</h3><p>点一个座位、再点另一个，两人就换了位置；也可以直接修改座位上的姓名。</p></div>
-      <div class="feature"><div class="icon">享</div><h3>导出与分享</h3><p>生成座位表图片发到家长群，或复制到 Excel / WPS；分享班级卡片，点开即可加入查看。</p></div>
-    </div>
-  </section>
+  <main id="app" class="wrap"></main>
 
-  <section class="wrap" id="screens">
-    <h2>界面</h2>
-    <p class="sub">小程序界面预览。</p>
-    <div class="shots">
-      <figure class="shot"><div class="frame"><img src="assets/screens/home.png" alt="首页：创建班级、加入班级和班级列表" loading="lazy" width="750" height="1100"></div><figcaption>首页</figcaption></figure>
-      <figure class="shot"><div class="frame"><img src="assets/screens/class.png" alt="座位表和排座方式" loading="lazy" width="750" height="1914"></div><figcaption>座位表</figcaption></figure>
-      <figure class="shot"><div class="frame"><img src="assets/screens/rules.png" alt="排座规则和教室布局" loading="lazy" width="750" height="1570"></div><figcaption>排座规则与教室布局</figcaption></figure>
+  <footer class="site">
+    <div class="wrap">
+      <p>易位 eaSEAT · QQ 小程序原版由 Wenbo Zhang 开发，微信版由 surnamemei 移植并维护</p>
+      <p><a href="https://github.com/surnamemei/Easeat">源代码</a> · <a href="https://github.com/surnamemei/Easeat/issues">提交问题</a> · 数据只保存在你的浏览器里，不会上传</p>
     </div>
-  </section>
-
-  <section class="wrap" id="demo">
-    <h2>在线体验</h2>
-    <p class="sub">这里运行的就是小程序云函数里的排座算法。数据只在你的浏览器里计算，不会上传。</p>
-    <div class="demo">
-      <div class="panel">
-        <h3>设置</h3>
-        <label for="roster">学生名单（每行：姓名 身高，身高可不填）</label>
-        <textarea id="roster" spellcheck="false"></textarea>
-        <label>教室</label>
-        <div class="nums">
-          <div><label for="rows" style="margin:0 0 4px">排数</label><input id="rows" type="number" min="1" max="20" value="6"></div>
-          <div><label for="groups" style="margin:0 0 4px">大组数</label><input id="groups" type="number" min="1" max="8" value="4"></div>
-          <div><label for="per" style="margin:0 0 4px">每组列数</label><input id="per" type="number" min="1" max="4" value="2"></div>
-        </div>
-        <label>排座方式</label>
-        <div class="segmented" role="group" aria-label="排座方式">
-          <button type="button" data-mode="height" aria-pressed="true">按身高</button>
-          <button type="button" data-mode="random" aria-pressed="false">完全随机</button>
-          <button type="button" data-mode="rotate" aria-pressed="false">大组轮换</button>
-        </div>
-        <p class="mode-desc" id="mode-desc"></p>
-        <label for="pairs">不相邻的同学（每行两个姓名）</label>
-        <textarea id="pairs" spellcheck="false">张子涵 李欣怡</textarea>
-        <button class="btn primary" id="run" type="button">排座</button>
-      </div>
-      <div class="panel">
-        <div class="chart-bar">
-          <h3>座位表</h3>
-          <button class="btn small soft" id="flip" type="button" aria-pressed="false">讲台视角</button>
-          <button class="btn small soft" id="copy" type="button">复制到 Excel</button>
-          <button class="btn small soft" id="download" type="button">下载图片</button>
-        </div>
-        <div class="chart-box"><canvas id="chart" aria-label="座位表图片"></canvas></div>
-        <p id="status" role="status"></p>
-        <p class="note">先用“按身高”排一次，再切换到“大组轮换”点“排座”，就能看到每个大组整体右移。</p>
-      </div>
-    </div>
-  </section>
-
-  <section class="wrap" id="how">
-    <h2>排座是怎么算的</h2>
-    <p class="sub">算法在 <a href="https://github.com/surnamemei/Easeat/blob/master/Easeat-wx/cloudfunctions/easeat/arrange.js"><code>arrange.js</code></a>，小程序和这个网页用的是同一份代码，并有自动化测试。</p>
-    <div class="how">
-      <div><h3>按身高</h3><p>给每位同学的身高加上 ±3 厘米的随机扰动后从矮到高排序，从第一排开始依次坐满；同一排内左右位置随机。这样前后顺序基本按身高，但身高相近的同学每次会换位置。</p></div>
-      <div><h3>大组轮换</h3><p>整列都没有课桌的地方被当作过道，过道把教室分成几个大组。每一排里，每个大组的同学整体搬到右边一组；课桌数不同时，多出来的同学坐到同一排最近的空位。</p></div>
-      <div><h3>不相邻名单</h3><p>排好后检查每一对“不相邻”的同学是否同桌或前后桌。如果是，就把其中一人和别人交换——优先在同一排里换，尽量不打乱身高顺序。座位实在太挤时会提示还有几组没能分开。</p></div>
-      <div><h3>数据与隐私</h3><p>只保存排座需要的班级名称、学生姓名和身高。只有班级创建者能看到名单和身高，其他人只能看座位表；上传的 Excel 读取后立即删除。</p></div>
-    </div>
-  </section>
-
-  <footer class="wrap">
-    <p>易位 eaSEAT · 由武汉英中高级中学的学生团队开发</p>
-    <p>源代码：<a href="https://github.com/surnamemei/Easeat">github.com/surnamemei/Easeat</a> · <a href="https://github.com/surnamemei/Easeat/issues">提交问题</a></p>
   </footer>
 
-  <script src="js/arrange.js"></script>
-  <script src="js/roster.js"></script>
-  <script src="js/seat-chart.js"></script>
-  <script>
-    (function () {
-      const MODE_DESC = {
-        height: '矮的同学坐前面；身高相近的同学每次随机交换位置。',
-        random: '不考虑身高，所有人随机就座。',
-        rotate: '每个大组整体向右移一组（最右边的组移到最左边），前后排和同桌都不变。',
-      };
-      const SURNAMES = '张李王刘陈杨黄赵吴周徐孙马朱胡郭何高林罗郑梁谢宋唐许韩冯邓曹彭曾肖田董袁潘于蒋蔡余杜叶程苏魏吕';
-      const GIVEN = ['子涵', '欣怡', '梓轩', '浩然', '雨桐', '宇航', '思琪', '一诺', '俊杰', '佳怡', '博文', '语嫣', '晨曦', '天佑', '嘉怡', '明轩', '诗涵', '皓轩', '若曦', '子墨', '昊天', '雅琪', '梓萱', '睿', '涵', '泽宇', '可馨', '子豪', '静怡', '奕辰', '心怡', '铭', '沐阳', '欣然', '嘉豪', '紫萱', '宇', '思远', '梦琪', '安琪'];
+  <div id="modal-root"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <input id="file-input" type="file" hidden>
 
-      const $ = (id) => document.getElementById(id);
-      const canvas = $('chart');
-      const state = { mode: 'height', flip: false, seats: null, arrangement: [], time: null };
-
-      $('roster').value = GIVEN.map((g, i) => SURNAMES[i % SURNAMES.length] + g + ' ' + (148 + ((i * 37) % 30))).join('\n');
-
-      function clampInput(id, min, max) {
-        const n = Math.round(Number($(id).value));
-        const v = Math.min(max, Math.max(min, isFinite(n) ? n : min));
-        $(id).value = v;
-        return v;
-      }
-
-      function buildSeats() {
-        const rows = clampInput('rows', 1, 20);
-        const groups = clampInput('groups', 1, 8);
-        const per = clampInput('per', 1, 4);
-        const row = [];
-        for (let g = 0; g < groups; g++) {
-          if (g) row.push(false);
-          for (let k = 0; k < per; k++) row.push(true);
-        }
-        return Array.from({ length: rows }, () => row.slice());
-      }
-
-      function readPairs(students) {
-        const idOf = new Map();
-        students.forEach((s) => idOf.has(s.name) || idOf.set(s.name, s.id));
-        return $('pairs').value.split(/\n/).map((line) => line.trim().split(/[\s,，、↔\-]+/).filter(Boolean))
-          .filter((p) => p.length === 2 && idOf.has(p[0]) && idOf.has(p[1]))
-          .map((p) => [idOf.get(p[0]), idOf.get(p[1])]);
-      }
-
-      function setStatus(text, isError) {
-        $('status').textContent = text;
-        $('status').className = isError ? 'error' : '';
-      }
-
-      function formatTime(d) {
-        const pad = (n) => (n < 10 ? '0' + n : '' + n);
-        return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-      }
-
-      function draw() {
-        if (!state.seats) return;
-        const size = EaseatChart.measure(state.seats);
-        const ratio = Math.min(window.devicePixelRatio || 1, 2) * 1.5;
-        canvas.width = Math.round(size.width * ratio);
-        canvas.height = Math.round(size.height * ratio);
-        canvas.style.aspectRatio = size.width + ' / ' + size.height;
-        const ctx = canvas.getContext('2d');
-        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-        EaseatChart.draw(ctx, {
-          title: '演示班级 座位表',
-          subtitle: state.time ? '排座时间：' + formatTime(state.time) : '',
-          seats: state.seats,
-          arrangement: state.arrangement,
-          flip: state.flip,
-        });
-      }
-
-      function run() {
-        const seats = buildSeats();
-        const students = EaseatRoster.parseText($('roster').value).map((s, i) => Object.assign({ id: i + 1 }, s));
-        try {
-          const res = EaseatArrange.arrange(students, seats, { mode: state.mode, current: state.arrangement, separate: readPairs(students) });
-          state.seats = seats;
-          state.arrangement = res.arrangement;
-          state.time = new Date();
-          const desks = EaseatArrange.countDesks(seats);
-          let msg = '已为 ' + students.length + ' 名学生排好座位，共 ' + desks + ' 张课桌。';
-          if (res.unresolved) msg += ' 座位太紧张，还有 ' + res.unresolved + ' 组不相邻的同学没能分开。';
-          setStatus(msg, false);
-        } catch (e) {
-          state.seats = seats;
-          if (!EaseatArrange.matchesLayout(state.arrangement, seats)) state.arrangement = [];
-          setStatus(e.message, true);
-        }
-        draw();
-      }
-
-      function setMode(mode) {
-        state.mode = mode;
-        document.querySelectorAll('.segmented button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
-        $('mode-desc').textContent = MODE_DESC[mode];
-      }
-
-      document.querySelectorAll('.segmented button').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
-      $('run').addEventListener('click', run);
-      $('flip').addEventListener('click', () => {
-        state.flip = !state.flip;
-        $('flip').setAttribute('aria-pressed', String(state.flip));
-        $('flip').textContent = state.flip ? '学生视角' : '讲台视角';
-        draw();
-      });
-      $('copy').addEventListener('click', () => {
-        if (!state.arrangement.length) return setStatus('还没有座位表。', true);
-        const text = EaseatChart.toTSV('演示班级 座位表', state.arrangement, state.flip);
-        navigator.clipboard.writeText(text).then(
-          () => setStatus('已复制。打开 Excel 或 WPS，选中一个单元格粘贴即可。', false),
-          () => setStatus('浏览器不允许复制，请换一个浏览器试试。', true)
-        );
-      });
-      $('download').addEventListener('click', () => {
-        if (!state.arrangement.length) return setStatus('还没有座位表。', true);
-        canvas.toBlob((blob) => {
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(blob);
-          a.download = '座位表.png';
-          a.click();
-          setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-        });
-      });
-
-      setMode('height');
-      run();
-    })();
-  </script>
+  <script src="js/core/fflate.js"></script>
+  <script src="js/core/arrange.js"></script>
+  <script src="js/core/roster.js"></script>
+  <script src="js/core/seat-chart.js"></script>
+  <script src="js/core/xlsx.js"></script>
+  <script src="js/core/share-link.js"></script>
+  <script src="js/core/local-db.js"></script>
+  <script src="js/core/service.js"></script>
+  <script src="js/core/demo.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>

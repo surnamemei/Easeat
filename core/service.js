@@ -488,6 +488,8 @@
           const [{ students }, seats, arrDoc] = await Promise.all([loadStudents(cls._id), loadSeats(cls._id), getDoc(classArrangements, cls._id)]);
           const settings = settingsOf(cls);
           return {
+            // id 只用于显示，导入备份时会分配新的 ID
+            id: cls._id,
             name: cls.name || '未命名班级',
             createdAt: cls.createdAt || null,
             settings: Object.assign(settings, { separate: cleanPairs(settings.separate, students) }),
