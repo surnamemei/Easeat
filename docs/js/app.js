@@ -1,5 +1,5 @@
 /**
- * 易位 eaSEAT 网页版。业务逻辑和小程序完全相同（js/core/ 由 scripts/sync.js 从仓库的 core/ 复制），
+ * 易位 eaSEAT 网页版（现在唯一继续维护的版本）。js/core/ 由 scripts/sync.js 从仓库的 core/ 复制，
  * 数据保存在浏览器的 localStorage 里，不需要服务器。
  *
  * 页面：#/ 我的班级，#/class/<id> 班级，#/about 关于，#view=<编码> 老师分享的只读座位表。
@@ -380,7 +380,7 @@
       <section class="intro">
         <div>
           <h1>帮老师自动排座位</h1>
-          <p>录入学生名单、画好教室布局，一键按身高、随机或大组轮换排好座位；可以指定不坐在一起的同学，导出 Excel 和图片。网页版不需要安装，和微信、QQ 小程序的功能一样，备份文件可以互相导入。</p>
+          <p>录入学生名单、画好教室布局，一键按身高、随机或大组轮换排好座位；可以指定不坐在一起的同学，导出 Excel 和图片。不需要安装，打开网页就能用，数据只保存在你的浏览器里。</p>
         </div>
       </section>
       ${storage ? '' : '<p class="notice" style="margin-bottom:16px">这个浏览器不允许网站保存数据（可能是无痕模式），关闭页面后数据会丢失。请记得导出备份。</p>'}
@@ -648,7 +648,7 @@
       <div class="about">
         <section>
           <h2>易位 eaSEAT</h2>
-          <p class="sub">帮老师自动排座位的微信 / QQ 小程序和网页。录入名单、画好教室布局，一键排好座位，导出 Excel 或图片发给学生和家长。</p>
+          <p class="sub">帮老师自动排座位的网页。录入名单、画好教室布局，一键排好座位，导出 Excel 或图片发给学生和家长。</p>
           <div class="feature-grid">
             ${[
               ['按身高排座', '矮的同学坐前面；身高相近的同学每次随机交换位置，没填身高的同学随机安排。'],
@@ -663,8 +663,8 @@
           </div>
         </section>
         <section>
-          <h2>小程序界面</h2>
-          <p class="sub">微信和 QQ 小程序与网页版功能相同，备份文件可以互相导入。</p>
+          <h2>小程序版（已存档）</h2>
+          <p class="sub">易位最早是微信和 QQ 小程序。2.0 版的小程序在微信和 QQ 开发者工具中测试完成后存档，没有公开发布；以后只更新网页版。小程序的代码保存在 <a href="https://github.com/surnamemei/Easeat/releases/tag/v2.0">2.0 存档</a> 中，它导出的备份文件可以导入网页版。</p>
           <div class="shots">
             <figure class="shot"><div class="frame"><img src="assets/screens/home.png" alt="小程序首页" loading="lazy" width="750" height="1100"></div><figcaption>首页</figcaption></figure>
             <figure class="shot"><div class="frame"><img src="assets/screens/class.png" alt="小程序座位表" loading="lazy"></div><figcaption>座位表</figcaption></figure>
@@ -673,7 +673,7 @@
         </section>
         <section>
           <h2>排座是怎么算的</h2>
-          <p class="sub">算法在 <a href="https://github.com/surnamemei/Easeat/blob/master/core/arrange.js"><code>core/arrange.js</code></a>，小程序和网页版用的是同一份代码，并有自动化测试。</p>
+          <p class="sub">算法在 <a href="https://github.com/surnamemei/Easeat/blob/master/core/arrange.js"><code>core/arrange.js</code></a>，网页版和存档的小程序用的是同一套算法，并有自动化测试。</p>
           <div class="feature-grid">
             <div class="feature"><h3>按身高</h3><p>给每位同学的身高加上 ±3 厘米的随机扰动后从矮到高排序，从第一排开始依次坐满；同一排内左右位置随机。</p></div>
             <div class="feature"><h3>大组轮换</h3><p>整列没有课桌的地方是过道，把教室分成几个大组。每一排里，每个大组的同学整体搬到右边一组；课桌数不同时，多出来的同学坐到同一排最近的空位。</p></div>

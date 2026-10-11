@@ -2,10 +2,10 @@
 
 <h1 align="center">易位 eaSEAT</h1>
 
-<p align="center">帮老师自动排座位的网页、微信小程序和 QQ 小程序<br>
-<a href="https://surnamemei.github.io/Easeat/"><b>打开网页版</b></a> · <a href="https://github.com/surnamemei/Easeat/releases/tag/v1.0">1.0 原版存档</a></p>
+<p align="center">帮老师自动排座位的网页<br>
+<a href="https://surnamemei.github.io/Easeat/"><b>打开网页版</b></a> · <a href="https://github.com/surnamemei/Easeat/releases/tag/v2.0">2.0 小程序存档</a> · <a href="https://github.com/surnamemei/Easeat/releases/tag/v1.0">1.0 原版存档</a></p>
 
-> **English:** Easeat arranges classroom seats for teachers — by height, at random, or by rotating the seat groups every week — while keeping chosen pairs of students apart. It exports print-ready Excel files and images, and shares read-only links with students and parents. It runs as a website and as WeChat / QQ mini programs, all without a server: data stays on the teacher's device. The original QQ mini program was written by Wenbo Zhang; surnamemei ported it to WeChat and maintains it.
+> **English:** Easeat arranges classroom seats for teachers — by height, at random, or by rotating the seat groups every week — while keeping chosen pairs of students apart. It exports print-ready Excel files and images, and shares read-only links with students and parents. It runs as a website without any server: data stays in the teacher's browser. Easeat started as WeChat / QQ mini programs — the original QQ mini program was written by Wenbo Zhang and surnamemei ported it to WeChat. The 2.0 mini programs were tested and then archived without being published; only the website is maintained now.
 
 ## 功能
 
@@ -33,17 +33,15 @@
 - **Wenbo Zhang** 开发了 QQ 小程序原版；
 - **surnamemei** 把它移植到微信，并负责后续维护。
 
-2.0 之前的代码保存在 [v1.0 存档](https://github.com/surnamemei/Easeat/releases/tag/v1.0) 中。
+## 版本和现状
 
-## 三种用法
-
-| | 数据保存在 | 需要部署 |
+| | 现状 | 代码 |
 | --- | --- | --- |
-| [网页版](https://surnamemei.github.io/Easeat/) | 浏览器（localStorage） | 不需要，GitHub Pages 直接发布 `docs/` |
-| 小程序 · 本机模式（默认） | 手机本地缓存 | 不需要云开发，没有任何费用 |
-| 小程序 · 云端模式 | 微信 / QQ 云开发数据库 | 部署云函数 `easeat`；学生和家长可以加入班级、数据可以跨设备同步 |
+| [网页版](https://surnamemei.github.io/Easeat/) | **继续维护**，GitHub Pages 直接发布 `docs/` | `core/`、`docs/` |
+| 微信 / QQ 小程序 2.0 | 在微信和 QQ 开发者工具中测试完成后**存档**，没有公开发布 | [v2.0 存档](https://github.com/surnamemei/Easeat/releases/tag/v2.0)，`Easeat-wx/`、`Easeat-qq/` |
+| 1.0 原版 | 存档 | [v1.0 存档](https://github.com/surnamemei/Easeat/releases/tag/v1.0) |
 
-三种用法运行的是同一份业务逻辑（`core/service.js`），功能完全相同；云端模式只是多了“加入班级”。切换模式只需修改 `utils/platform.js` 里的 `mode`。
+网页版和 2.0 小程序运行的是同一份业务逻辑（`core/service.js`），备份文件可以互相导入。小程序默认把数据保存在手机上（本机模式），不需要云开发；把 `utils/platform.js` 里的 `mode` 改为 `'cloud'` 并部署云函数后，学生和家长还可以加入班级。
 
 ## 项目结构
 
@@ -69,9 +67,13 @@ scripts/sync.js            同步共用代码并生成 QQ 版
 tests/                     自动化测试
 ```
 
-修改共用逻辑时改 `core/`，修改小程序界面时改 `Easeat-wx/`，然后运行 `npm run sync`。
+以后只更新网页版：修改 `core/`（共用逻辑）和 `docs/`（网页），然后运行 `npm run sync`。它只会更新网页版里的 core 副本，存档的小程序不会被改动。
 
-## 小程序：本机模式（默认）
+## 以后如果要重新发布小程序
+
+小程序的代码保存在 `Easeat-wx/`（微信）和 `Easeat-qq/`（由微信版生成），和 v2.0 存档一致。如果要把网页版之后的改动带回小程序，运行 `npm run sync:all`，再按下面的步骤测试、发布。
+
+### 本机模式（默认）
 
 1. 用微信开发者工具打开 `Easeat-wx`（QQ 版用 QQ 小程序开发者工具打开 `Easeat-qq`），直接编译即可，不需要开通云开发。
 2. 在小程序管理后台的「用户隐私保护指引」中声明「剪切板」（复制表格、链接、备份）和「选中的文件」（导入名单、恢复备份），否则这两类功能会被拦截。
@@ -85,7 +87,7 @@ tests/                     自动化测试
 - 没有“加入班级”，座位表通过图片、Excel 文件或网页链接分享；
 - 每周自动重排在每周一以后第一次打开班级时进行。
 
-## 小程序：云端模式
+### 云端模式
 
 1. 把 `utils/platform.js` 中的 `mode` 改为 `'cloud'`，`cloudEnv` 改为你的云开发环境 ID。
 2. **数据库**：创建 `class`、`classStudent`、`classUser`、`classSeat`、`classArrangement` 五个集合（1.0 时已经建好的可以直接使用），权限都设为「所有用户不可读写」，云函数不受影响。
@@ -105,14 +107,14 @@ npm test
 npm run sync
 ```
 
-`npm test` 会运行：
+`npm run sync` 把 `core/` 复制到网页版（`docs/js/core/`）。`npm test` 会运行：
 
 - 排座算法、名单解析、Excel 读写（包括用 openpyxl 生成的测试文件）、分享链接的测试；
 - 业务逻辑的每个操作，包括权限检查、旧版本数据的兼容、备份和恢复；
 - 页面测试：在 Node 里模拟小程序运行环境，像用户一样点击页面。微信版和 QQ 版各跑一遍，每个平台又分本机模式和云端模式；
-- 检查 QQ 版、云函数和网页版里的 core 副本是否已经同步。
+- 检查网页版里的 core 副本是否是最新的，以及 QQ 版是否和存档的微信版一致。
 
-真机上的效果（文件转发、生成图片等）还需要在微信和 QQ 开发者工具或手机上检查。
+网页版的完整操作（每个页面、导出、备份、手机布局、深色模式）在发布前用浏览器自动测试过；改动网页后请在电脑和手机浏览器里各点一遍。
 
 ## 数据结构
 

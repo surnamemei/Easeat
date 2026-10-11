@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 /**
- * 同步共用代码：
- * 1. 把 core/ 里的共用模块复制到微信版（utils/core、云函数 easeat/core）和网页版（docs/js/core）；
- * 2. 以微信版（Easeat-wx）为准，生成 QQ 版（Easeat-qq）。
+ * 同步共用代码。
  *
- *   node scripts/sync.js          同步
- *   node scripts/sync.js --check  只检查是否已同步（测试里会运行）
+ * 微信 / QQ 小程序已经在 2.0 存档，以后只更新网页版，所以默认只把 core/ 复制到网页版（docs/js/core）：
+ *
+ *   node scripts/sync.js                同步网页版
+ *   node scripts/sync.js --check        只检查是否已同步（测试里会运行）
+ *
+ * 如果以后要再更新小程序，加上 --all：同时把 core/ 复制到微信版（utils/core、云函数 easeat/core），
+ * 再以微信版（Easeat-wx）为准生成 QQ 版（Easeat-qq）。不加 --all 时只检查 QQ 版和存档的微信版是否一致。
+ *
+ *   node scripts/sync.js --all
  *
  * 转换规则：.wxml → .qml，.wxss → .qss，wx: → qq:，wx. → qq.，
  * 云函数里 wx-server-sdk → qq-server-sdk，getWXContext → getQQContext。
@@ -20,12 +25,16 @@ const WX = path.join(ROOT, 'Easeat-wx');
 const QQ = path.join(ROOT, 'Easeat-qq');
 const DOCS_CORE = path.join(ROOT, 'docs', 'js', 'core');
 
-// core/ 里的模块复制到哪里（云函数只需要业务逻辑）
+// core/ 里的模块复制到哪里（云函数只需要业务逻辑）。miniprogram 为 true 的位置只在 --all 时更新
 const CORE_TARGETS = [
-  { dir: path.join(WX, 'utils', 'core'), files: null },
-  { dir: path.join(WX, 'cloudfunctions', 'easeat', 'core'), files: ['arrange.js', 'roster.js', 'service.js'] },
+  { dir: path.join(WX, 'utils', 'core'), files: null, miniprogram: true },
+  { dir: path.join(WX, 'cloudfunctions', 'easeat', 'core'), files: ['arrange.js', 'roster.js', 'service.js'], miniprogram: true },
   { dir: DOCS_CORE, files: null },
 ];
+
+function targets(options) {
+  return CORE_TARGETS.filter((t) => (options && options.all) || !t.miniprogram);
+}
 const BANNER = '// 此文件由 scripts/sync.js 从仓库根目录的 core/ 复制而来，请修改 core/ 中的原文件。\n';
 
 const QQ_SERVER_SDK = '^1.2.2-beta.2';
@@ -54,10 +63,10 @@ function transformJs(text, file) {
 }
 
 /** core/ 复制出去的文件：Map<绝对路径, Buffer> */
-function coreOutputs() {
+function coreOutputs(options) {
   const out = new Map();
   const modules = fs.readdirSync(CORE).filter((f) => f.endsWith('.js'));
-  for (const target of CORE_TARGETS) {
+  for (const target of targets(options)) {
     for (const name of target.files || modules) {
       out.set(path.join(target.dir, name), Buffer.concat([Buffer.from(BANNER), fs.readFileSync(path.join(CORE, name))]));
     }
@@ -65,12 +74,12 @@ function coreOutputs() {
   return out;
 }
 
-/** 生成的全部文件（core 的副本和 QQ 版）：Map<绝对路径, Buffer> */
-function buildOutputs() {
-  const out = coreOutputs();
+/** 生成的全部文件（core 的副本和 QQ 版）：Map<绝对路径, Buffer>。options.all：同时更新小程序 */
+function buildOutputs(options) {
+  const out = coreOutputs(options);
   const qqApp = JSON.parse(fs.readFileSync(path.join(QQ, 'app.json'), 'utf8'));
   // QQ 版从微信版生成，微信版里的 core 副本以这次生成的内容为准
-  const inCoreCopy = (abs) => CORE_TARGETS.some((t) => abs.startsWith(t.dir + path.sep));
+  const inCoreCopy = (abs) => targets(options).some((t) => abs.startsWith(t.dir + path.sep));
   const wxFiles = new Map(
     walk(WX)
       .map((file) => [file, path.join(WX, file)])
@@ -112,14 +121,14 @@ function buildOutputs() {
 }
 
 /** 应该删除的旧文件：QQ 版里不再由微信版生成的文件，以及各个 core 副本目录里多出来的文件 */
-function staleFiles(outputs) {
+function staleFiles(outputs, options) {
   const stale = [];
   for (const file of walk(QQ)) {
     const top = file.split('/')[0];
     if (!GENERATED.includes(top) || QQ_OWNED.includes(file) || /(^|\/)node_modules\//.test(file)) continue;
     if (!outputs.has(path.join(QQ, file))) stale.push(path.join(QQ, file));
   }
-  for (const { dir } of CORE_TARGETS) {
+  for (const { dir } of targets(options)) {
     for (const file of walk(dir)) if (!outputs.has(path.join(dir, file))) stale.push(path.join(dir, file));
   }
   return stale;
@@ -127,16 +136,17 @@ function staleFiles(outputs) {
 
 function main() {
   const check = process.argv.includes('--check');
-  const outputs = buildOutputs();
-  const stale = staleFiles(outputs);
+  const options = { all: process.argv.includes('--all') };
+  const outputs = buildOutputs(options);
+  const stale = staleFiles(outputs, options);
   const changed = [...outputs].filter(([file, content]) => !fs.existsSync(file) || !fs.readFileSync(file).equals(content));
   const rel = (f) => path.relative(ROOT, f).split(path.sep).join('/');
 
   if (check) {
-    if (!changed.length && !stale.length) return console.log('QQ 版和网页演示已与微信版同步。');
+    if (!changed.length && !stale.length) return console.log(options.all ? '网页版和小程序都已同步。' : '网页版已同步，QQ 版与存档的微信版一致。');
     changed.forEach(([f]) => console.log(`需要更新：${rel(f)}`));
     stale.forEach((f) => console.log(`需要删除：${rel(f)}`));
-    console.log('请运行 node scripts/sync.js');
+    console.log(`请运行 node scripts/sync.js${options.all ? ' --all' : ''}`);
     process.exitCode = 1;
     return;
   }
